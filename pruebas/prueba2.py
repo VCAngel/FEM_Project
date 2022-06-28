@@ -28,6 +28,11 @@ class Window(QMainWindow):
 
         self.points = QtGui.QPolygon()
 
+        self.first_draw = True
+        self.first_point = None
+        self.prev_point = None
+        self.curr_point = None
+
     def InitWindow(self):
 
         self.setWindowTitle(self.title)
@@ -37,7 +42,16 @@ class Window(QMainWindow):
         self.show()
 
     def mousePressEvent(self, e):
-        self.points << e.pos()
+        if e.button() == 1:
+            if self.first_draw:
+                self.points << e.pos()
+                self.prev_point == e.pos()
+                self.first_draw = False
+            else:
+                self.points << e.pos()
+                self.prev_point == e.pos()
+                
+
         self.update()
 
     def paintEvent(self, ev):
@@ -48,6 +62,7 @@ class Window(QMainWindow):
         qp.setBrush(brush)
         for i in range(self.points.count()):
             qp.drawEllipse(self.points.point(i), 5, 5)
+
 
 App = QApplication(sys.argv)
 
