@@ -34,7 +34,7 @@ class EditorWindow(QMainWindow):
         root = os.path.dirname(os.path.realpath(__file__))
         loadUi(os.path.join(root, 'editor.ui'), self)
 
-        # loadUi('editor.ui', self)   loadUI kan ladd ui-fil och lägga till objekt direkt i klassen.
+        # loadUi('editor.ui', self)   loadUI kan ladd ui-fil ocoh lägga till objekt direkt i klassen.
         self.setWindowTitle("CALFEM Geometry Editor")
 
         scene = editor_scene.EditorScene(self)
