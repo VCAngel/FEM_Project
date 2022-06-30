@@ -44,7 +44,7 @@ class Canvas(QGraphicsItem):
         self.LUBronze = QColor(156, 97, 20)
         self.LUBronze_dark = QColor(146, 87, 10)
 
-        self.mode="Draw poly"
+        self.mode="Draw rect"
         
 
     def paint(self, painter, option, widget):
