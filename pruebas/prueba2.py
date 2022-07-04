@@ -59,20 +59,19 @@ class Canvas(QWidget):
         return drawArea
 
     def mouseReleaseEvent(self, event):
+        print("B")
         super(Canvas, self).mouseReleaseEvent(event)
         # If a point or polygon is selected releasing the mouse will de-select the object and add the
         # current coordinates back to the global coordinate list to update to the new position
         if self.mode == "Arrow":
-            print("a")
+            print("C")
             if self.parentScene.selectedItems():
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
                     for point in self.poly_to_list(self.parentScene.selectedItems()[0], "Global"):
                         self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
                     point = self.parentScene.selectedItems()[0].scenePos()
-                    self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
-                    print("Node moved to (" + str(point.x()) + " , " + str(-point.y()) + ")")
-            self.clearSelection()        
+                    self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)    
             
 
     def mousePressEvent(self, e):
@@ -80,6 +79,7 @@ class Canvas(QWidget):
         y = e.pos().y()
 
         if self.mode == "Arrow":
+            print("A")
             if e.button() != 1:
                 # Return if button clicked is any is any other than left mouse
                 return
@@ -319,7 +319,7 @@ class Canvas(QWidget):
             if self.parentScene.selectedItems():
                 # If a polygon is selected update the polygons position with the corresponding mouse movement
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
-                    self.parentScene.selectedItems()[0].moveBy(x - event.lastScenePos().x(), y - event.lastScenePos().y())
+                    self.parentScene.selectedItems()[0].moveBy(x - event.lastPos().x(), y - event.lastPos().y())
                 # If a circle is selected update the circles position with the corresponding mouse movement and
                 # update the parent polygon with the changed corner
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
@@ -376,7 +376,6 @@ class Canvas(QWidget):
                         coords = templist[np.where((np.linalg.norm(templist - [x, y], axis=1) < 10))]
                         x = coords[0][0]
                         y = coords[0][1]
-
                     # Move corner of the polygon to the new x and y, if no snapping has occurred it is the mouse coords
                     self.move_node(circ, poly, x, y)
 
@@ -411,6 +410,7 @@ class Canvas(QWidget):
                         self.connecting_rect.setRect(QRectF(self.prev_point, QPointF(x, y)))
                 else:
                     self.connecting_rect = self.parentScene.addRect(QRectF(self.prev_point, QPointF(x, y)))
+
     def poly_to_list(self, poly, scope: str):
         """Extract the points from a QGraphicsPolygonItem or a QPolygonF and return a list of all the containing QPointF
         , scope to be chosen as Global return scene coordinates otherwise returns local coordinates """
@@ -452,6 +452,10 @@ class MainView(QGraphicsView):
         self.canvas = Canvas(self)
         self.setMouseTracking(True)
         self.scene.addWidget(self.canvas)
+
+    def mouseMoveEvent(self, event):
+        self.canvas.mouseMoveEvent(event)
+        
 
 
 class Window(QMainWindow):
