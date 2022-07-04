@@ -1,5 +1,5 @@
 from tkinter import Y
-from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsItem, QWidget, QGraphicsEllipseItem
+from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsItem, QWidget, QGraphicsEllipseItem, QGraphicsSceneMouseEvent
 from PyQt5.QtGui import QBrush, QPen, QPolygonF, QColor
 from PyQt5.QtCore import Qt, QRectF, QPointF, QLineF
 import sys
@@ -47,7 +47,6 @@ class Canvas(QWidget):
         self.LUBronze_dark = QColor(146, 87, 10)
 
         self.mode="Draw poly"
-        self.setMouseTracking(True)
         
 
     def paint(self, painter, option, widget):
@@ -59,19 +58,18 @@ class Canvas(QWidget):
         return drawArea
 
     def mouseReleaseEvent(self, event):
-        print("B")
-        super(Canvas, self).mouseReleaseEvent(event)
         # If a point or polygon is selected releasing the mouse will de-select the object and add the
         # current coordinates back to the global coordinate list to update to the new position
         if self.mode == "Arrow":
-            print("C")
             if self.parentScene.selectedItems():
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
                     for point in self.poly_to_list(self.parentScene.selectedItems()[0], "Global"):
                         self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
                     point = self.parentScene.selectedItems()[0].scenePos()
-                    self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)    
+                    self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)   
+
+            self.parentScene.clearSelection() 
             
 
     def mousePressEvent(self, e):
@@ -83,10 +81,12 @@ class Canvas(QWidget):
             if e.button() != 1:
                 # Return if button clicked is any is any other than left mouse
                 return
-            super(Canvas, self).mousePressEvent(e)
+
+            print("asjnk")
 
             if self.parentScene.selectedItems():
                 print(self.parentScene.selectedItems())
+
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
                     for point in self.poly_to_list(self.parentScene.selectedItems()[0], "Global"):
                         self.point_coord_list = np.delete(self.point_coord_list, np.where(
@@ -314,6 +314,8 @@ class Canvas(QWidget):
         # When moving the mouse in the graphicsScene display coords in label
         x = event.pos().x()
         y = event.pos().y() 
+        
+
 
         if self.mode == "Arrow":
             if self.parentScene.selectedItems():
@@ -450,11 +452,8 @@ class MainView(QGraphicsView):
 
         # Agregar el componente Canvas a la escena
         self.canvas = Canvas(self)
-        self.setMouseTracking(True)
         self.scene.addWidget(self.canvas)
 
-    def mouseMoveEvent(self, event):
-        self.canvas.mouseMoveEvent(event)
         
 
 
@@ -473,7 +472,6 @@ class Window(QMainWindow):
             self.setGeometry(int(center[0]), int(center[1]), 640, 480)
         else:
             self.setGeometry(0, 0, 640, 480)
-        self.setMouseTracking(True) 
 
 
 
