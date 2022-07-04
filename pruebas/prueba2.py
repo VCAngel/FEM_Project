@@ -4,6 +4,7 @@ from PyQt5.QtGui import QBrush, QPen, QPolygonF, QColor
 from PyQt5.QtCore import Qt, QRectF, QPointF, QLineF
 import sys
 import numpy as np
+import PyQt5
 
 
 class Canvas(QWidget):
@@ -56,9 +57,45 @@ class Canvas(QWidget):
         drawArea = QRectF(0, 0, 400, 400)
         return drawArea
 
+    def mouseReleaseEvent(self, event):
+        super(Canvas, self).mouseReleaseEvent(event)
+        # If a point or polygon is selected releasing the mouse will de-select the object and add the
+        # current coordinates back to the global coordinate list to update to the new position
+        if self.mode == "Arrow":
+            print("a")
+            if self.parentScene.selectedItems():
+                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
+                    for point in self.poly_to_list(self.parentScene.selectedItems()[0], "Global"):
+                        self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
+                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
+                    point = self.parentScene.selectedItems()[0].scenePos()
+                    self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
+                    print("Node moved to (" + str(point.x()) + " , " + str(-point.y()) + ")")
+            self.clearSelection()        
+            
+
     def mousePressEvent(self, e):
         x = e.pos().x()
         y = e.pos().y()
+
+        if self.mode == "Arrow":
+            if e.button() != 1:
+                # Return if button clicked is any is any other than left mouse
+                return
+            super(Canvas, self).mousePressEvent(e)
+
+            if self.parentScene.selectedItems():
+                print("A")
+                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
+                    for point in self.poly_to_list(self.parentScene.selectedItems()[0], "Global"):
+                        self.point_coord_list = np.delete(self.point_coord_list, np.where(
+                            np.all(self.point_coord_list == [[point.x(), point.y()]], axis=1))[0][0], axis=0)
+                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
+                    self.prev_selected_point = self.parentScene.selectedItems()[0]
+                    point = self.parentScene.selectedItems()[0].scenePos()
+                    self.point_coord_list = np.delete(self.point_coord_list, np.where(
+                        np.all(self.point_coord_list == [[point.x(), point.y()]], axis=1))[0][0], axis=0)
+                
 
         if self.mode == "Draw poly":
             if e.button() == 2:
@@ -240,6 +277,32 @@ class Canvas(QWidget):
                         self.connecting_rect.setRect(QRectF(self.prev_point, QPointF(x, y)))
                 else:
                     self.connecting_rect = self.parentScene.addRect(QRectF(self.prev_point, QPointF(x, y)))
+    def poly_to_list(self, poly, scope: str):
+        """Extract the points from a QGraphicsPolygonItem or a QPolygonF and return a list of all the containing QPointF
+        , scope to be chosen as Global return scene coordinates otherwise returns local coordinates """
+        inner_list = []
+        x = 0
+        y = 0
+
+        # To be able to handle input as both QGraphicsPolygonItem and QPolygonF
+        if isinstance(poly, PyQt5.QtWidgets.QGraphicsPolygonItem):
+            if scope == "Global":
+                x = poly.x()
+                y = poly.y()
+            poly = poly.polygon()
+
+        for i in range(poly.size()):
+            inner_list.append(QPointF(poly.at(i).x() + x, poly.at(i).y() + y))
+        return inner_list
+
+    def keyPressEvent(self, e):
+        if e.key() == Qt.Key_F5:
+            self.mode = "Arrow"
+        elif e.key() == Qt.Key_F6:
+            self.mode = "Draw poly"
+        elif e.key() == Qt.Key_F7:
+            self.mode = "Draw rect"
+        print(self.mode)
 
 
 class MainView(QGraphicsView):
