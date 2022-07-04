@@ -6,7 +6,7 @@ import sys
 import numpy as np
 
 
-class Canvas(QGraphicsItem):
+class Canvas(QWidget):
     # * Canvas Component. Controls Drawing
     def __init__(self, helper):
         super(Canvas, self).__init__()
@@ -44,7 +44,8 @@ class Canvas(QGraphicsItem):
         self.LUBronze = QColor(156, 97, 20)
         self.LUBronze_dark = QColor(146, 87, 10)
 
-        self.mode="Draw rect"
+        self.mode="Draw poly"
+        self.setMouseTracking(True)
         
 
     def paint(self, painter, option, widget):
@@ -67,8 +68,6 @@ class Canvas(QGraphicsItem):
                 if self.newPoly or self.currentPoly.__len__() <= 2:
                     pass
                 else:
-                    self.parentScene.addLine(
-                        QLineF(self.prev_point, self.first_point), self.blackPen)
 
                     # Agregar poligono a lista
                     self.polyList.append(self.currentPoly)
@@ -87,7 +86,7 @@ class Canvas(QGraphicsItem):
                     # Inicializar nuevo poligono
                     self.currentPoly = QPolygonF()
 
-                    self.parentScene.addEllipse(
+                    point = self.parentScene.addEllipse(
                         x - 3, y - 3, 6, 6, self.blackPen, self.greenBrush)
                     self.first_point = QPointF(x, y)
                     self.prev_point = QPointF(x, y)
@@ -95,15 +94,24 @@ class Canvas(QGraphicsItem):
                     # Pasar el punto inicial al Poligono a construir
                     self.currentPoly << self.first_point
                     self.newPoly = False
+
+                    self.drawing_points.append(point)
+                    self.drawing_points_coords.append([x, y])
                 else:
-                    self.parentScene.addEllipse(
+                    point = self.parentScene.addEllipse(
                         x - 3, y - 3, 6, 6, self.blackPen, self.greenBrush)
-                    self.parentScene.addLine(
+
+                    line = self.parentScene.addLine(
                         QLineF(self.prev_point, QPointF(x, y)), self.blackPen)
+
                     self.prev_point = QPointF(x, y)
 
                     # Pasar el punto previo al Poligono a construir
                     self.currentPoly << self.prev_point
+
+                    self.connecting_line_list.append(line)
+                    self.drawing_points.append(point)
+                    self.drawing_points_coords.append([x, y])
 
         if self.mode == "Draw rect":
 
@@ -174,7 +182,7 @@ class Canvas(QGraphicsItem):
             self.edgeList.append(line)
 
     def remove_drawing_poly(self):
-        self.drawing_poly = QPolygonF()
+        self.currentPoly = QPolygonF()
         self.drawing_points_coords = []
 
         for p in self.drawing_points:
@@ -182,8 +190,10 @@ class Canvas(QGraphicsItem):
 
         for line in self.connecting_line_list:
             line.setVisible(False)
+
         if self.connecting_line:
             self.connecting_line.setVisible(False)
+
         self.connecting_line = None
         self.newPoly = True
 
@@ -199,7 +209,6 @@ class Canvas(QGraphicsItem):
         # When moving the mouse in the graphicsScene display coords in label
         x = event.pos().x()
         y = event.pos().y() 
-        print(x,y)
         if self.mode == "Draw poly":
             # This is to display the line in the polygon from the previous point to see where the new line would occur
             if self.newPoly:
@@ -214,7 +223,6 @@ class Canvas(QGraphicsItem):
 
         if self.mode == "Draw rect":
             # This is to display the rectangle from the previous point to see where the new rectangle would occur
-            print("A")
             if self.newPoly:
                 pass  # Don't draw if the first point has not been initiated
             else:
@@ -246,13 +254,13 @@ class MainView(QGraphicsView):
         # Agregar el componente Canvas a la escena
         self.canvas = Canvas(self)
         self.setMouseTracking(True)
-        self.scene.addItem(self.canvas)
+        self.scene.addWidget(self.canvas)
 
 
 class Window(QMainWindow):
     # * Main Application Window
     def __init__(self, screenSize=None):
-        super(Window, self).__init__()
+        super(QMainWindow, self).__init__()
         self.setWindowTitle("Pyside2 QGraphic View - Draw Test")
 
         self.view = MainView()
@@ -264,6 +272,7 @@ class Window(QMainWindow):
             self.setGeometry(int(center[0]), int(center[1]), 640, 480)
         else:
             self.setGeometry(0, 0, 640, 480)
+        self.setMouseTracking(True) 
 
 
 
