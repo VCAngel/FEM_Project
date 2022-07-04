@@ -72,6 +72,7 @@ class Canvas(QWidget):
                     self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
                     print("Node moved to (" + str(point.x()) + " , " + str(-point.y()) + ")")
             self.clearSelection()        
+            
 
     def mousePressEvent(self, e):
         x = e.pos().x()
@@ -315,7 +316,6 @@ class MainView(QGraphicsView):
 
         # Agregar el componente Canvas a la escena
         self.canvas = Canvas(self)
-        self.setMouseTracking(True)
         self.scene.addWidget(self.canvas)
 
 
