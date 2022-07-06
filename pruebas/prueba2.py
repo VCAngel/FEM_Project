@@ -47,6 +47,8 @@ class Canvas(QWidget):
         self.LUBronze_dark = QColor(146, 87, 10)
 
         self.mode="Draw poly"
+
+        self.setMouseTracking(True)
         
 
     def paint(self, painter, option, widget):
@@ -58,17 +60,20 @@ class Canvas(QWidget):
         return drawArea
 
     def mouseReleaseEvent(self, event):
+        super(Canvas, self).mouseReleaseEvent(event)
         # If a point or polygon is selected releasing the mouse will de-select the object and add the
         # current coordinates back to the global coordinate list to update to the new position
+        print("A")
         if self.mode == "Arrow":
+            print("B")
             if self.parentScene.selectedItems():
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
                     for point in self.poly_to_list(self.parentScene.selectedItems()[0], "Global"):
                         self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
+                    print("C")
                     point = self.parentScene.selectedItems()[0].scenePos()
                     self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)   
-
             self.parentScene.clearSelection() 
             
 
@@ -77,13 +82,10 @@ class Canvas(QWidget):
         y = e.pos().y()
 
         if self.mode == "Arrow":
-            print("A")
             if e.button() != 1:
                 # Return if button clicked is any is any other than left mouse
                 return
-
-            print("asjnk")
-
+            super(Canvas, self).mousePressEvent(e)
             if self.parentScene.selectedItems():
                 print(self.parentScene.selectedItems())
 
@@ -315,8 +317,6 @@ class Canvas(QWidget):
         x = event.pos().x()
         y = event.pos().y() 
         
-
-
         if self.mode == "Arrow":
             if self.parentScene.selectedItems():
                 # If a polygon is selected update the polygons position with the corresponding mouse movement

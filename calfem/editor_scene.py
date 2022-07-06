@@ -282,6 +282,7 @@ class EditorScene(QGraphicsScene, QMainWindow):
         # If the mode is set to Arrow, mouse behaves like a normal pointer
         if self.mode == "Arrow":
             if self.selectedItems():
+                
                 # If a polygon is selected update the polygons position with the corresponding mouse movement
                 if isinstance(self.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
                     if self.grid_snap:
@@ -722,10 +723,11 @@ class EditorScene(QGraphicsScene, QMainWindow):
         # If a point or polygon is selected releasing the mouse will de-select the object and add the
         # current coordinates back to the global coordinate list to update to the new position
         if self.mode == "Arrow":
-            if self.selectedItems():
+            if self.selectedItems():    
                 if isinstance(self.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
                     for point in self.poly_to_list(self.selectedItems()[0], "Global"):
                         self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
+                    
                 if isinstance(self.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
                     point = self.selectedItems()[0].scenePos()
                     self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
