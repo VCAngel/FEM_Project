@@ -1,20 +1,17 @@
 from tkinter import Y
 from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsItem, QWidget, QGraphicsEllipseItem, QGraphicsSceneMouseEvent
-from PyQt5.QtGui import QBrush, QPen, QPolygonF, QColor
-from PyQt5.QtCore import Qt, QRectF, QPointF, QLineF
+from PyQt5.QtGui import QBrush, QPen, QPolygonF, QColor, QMouseEvent
+from PyQt5.QtCore import Qt, QRectF, QPointF, QLineF, QSizeF
 import sys
 import numpy as np
 import PyQt5
 import itertools
 
 
-class Canvas(QWidget):
+class Canvas(QGraphicsScene):
     # * Canvas Component. Controls Drawing
-    def __init__(self, helper):
+    def __init__(self):
         super(Canvas, self).__init__()
-
-        # Referencia a la escena padre. Permite acceder a las funciones de dibujo
-        self.parentScene = helper.scene
 
         # Brushes y Pens
         self.greenBrush = QBrush(Qt.green)
@@ -61,39 +58,41 @@ class Canvas(QWidget):
         # If a point or polygon is selected releasing the mouse will de-select the object and add the
         # current coordinates back to the global coordinate list to update to the new position
         if self.mode == "Arrow":
-            if self.parentScene.selectedItems():
-                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
-                    for point in self.poly_to_list(self.parentScene.selectedItems()[0], "Global"):
+            if self.selectedItems():
+                if isinstance(self.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
+                    for point in self.poly_to_list(self.selectedItems()[0], "Global"):
                         self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
-                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
-                    point = self.parentScene.selectedItems()[0].scenePos()
+                if isinstance(self.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
+                    point = self.selectedItems()[0].scenePos()
                     self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)   
 
-            self.parentScene.clearSelection() 
+            self.clearSelection() 
             
 
-    def mousePressEvent(self, e):
+    def mousePressEvent(self, e: QMouseEvent):
         x = e.pos().x()
         y = e.pos().y()
 
+        print(x, y)
+        print(self.selectedItems())
+
         if self.mode == "Arrow":
-            print("A")
             if e.button() != 1:
                 # Return if button clicked is any is any other than left mouse
                 return
 
-            print("asjnk")
 
-            if self.parentScene.selectedItems():
-                print(self.parentScene.selectedItems())
+            if self.selectedItems():
 
-                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
-                    for point in self.poly_to_list(self.parentScene.selectedItems()[0], "Global"):
+                if isinstance(self.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
+                    for point in self.poly_to_list(self.selectedItems()[0], "Global"):
                         self.point_coord_list = np.delete(self.point_coord_list, np.where(
                             np.all(self.point_coord_list == [[point.x(), point.y()]], axis=1))[0][0], axis=0)
-                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
-                    self.prev_selected_point = self.parentScene.selectedItems()[0]
-                    point = self.parentScene.selectedItems()[0].scenePos()
+                if isinstance(self.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
+                    self.prev_selected_point = self.selectedItems()[0]
+                    point = self.selectedItems()[0].scenePos()
+                    print('Punto: ', point)
+                    print('Lista: ', self.point_coord_list)
                     self.point_coord_list = np.delete(self.point_coord_list, np.where(
                         np.all(self.point_coord_list == [[point.x(), point.y()]], axis=1))[0][0], axis=0)
 
@@ -123,7 +122,7 @@ class Canvas(QWidget):
                     # Inicializar nuevo poligono
                     self.currentPoly = QPolygonF()
 
-                    point = self.parentScene.addEllipse(
+                    point = self.addEllipse(
                         x - 3, y - 3, 6, 6, self.blackPen, self.greenBrush)
                     self.first_point = QPointF(x, y)
                     self.prev_point = QPointF(x, y)
@@ -135,10 +134,10 @@ class Canvas(QWidget):
                     self.drawing_points.append(point)
                     self.drawing_points_coords.append([x, y])
                 else:
-                    point = self.parentScene.addEllipse(
+                    point = self.addEllipse(
                         x - 3, y - 3, 6, 6, self.blackPen, self.greenBrush)
 
-                    line = self.parentScene.addLine(
+                    line = self.addLine(
                         QLineF(self.prev_point, QPointF(x, y)), self.blackPen)
 
                     self.prev_point = QPointF(x, y)
@@ -173,12 +172,12 @@ class Canvas(QWidget):
 
 
     def add_poli(self, polygon):
-        poly = self.parentScene.addPolygon(polygon, QPen(QColor(0, 0, 0, 0)), QBrush(QColor(0, 0, 0, 50)))
+        poly = self.addPolygon(polygon, QPen(QColor(0, 0, 0, 0)), QBrush(QColor(0, 0, 0, 50)))
         self.polyList.append(poly)
         self.add_poly_corners(poly)
         self.add_poly_edges(poly)
         poly.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-        poly.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+        #poly.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         return poly
 
     def add_poly_corners(self, poly_item):
@@ -186,13 +185,13 @@ class Canvas(QWidget):
 
         for i in range(poly.size()):
             point = poly.at(i)
-            p = self.parentScene.addEllipse(-4, -4, 8, 8, self.LUBronze, self.LUBronze)
+            p = self.addEllipse(-4, -4, 8, 8, self.LUBronze, self.LUBronze)
             p.setZValue(2)  # Make sure corners always in front of polygon surfaces
             p.setParentItem(poly_item)
             p.__setattr__("localIndex", int(i))
             p.setPos(point.x(), point.y())
             p.setFlag(QGraphicsItem.ItemIsSelectable)
-            p.setFlag(QGraphicsItem.ItemIsMovable)
+            #p.setFlag(QGraphicsItem.ItemIsMovable)
             self.point_coord_list = np.append(self.point_coord_list, [[p.x(), p.y()]], axis=0)
 
     def add_poly_edges(self, poly_item):
@@ -210,9 +209,9 @@ class Canvas(QWidget):
                 p2 = poly.at(i)
                 index = i
 
-            line = self.parentScene.addLine(QLineF(p1, p2))
+            line = self.addLine(QLineF(p1, p2))
             line.setZValue(-1)
-            display_line = self.parentScene.addLine(QLineF(p1, p2), QPen(self.LUBronze, 3))
+            display_line = self.addLine(QLineF(p1, p2), QPen(self.LUBronze, 3))
             line.__setattr__("localIndex", index)
             line.setParentItem(poly_item)
             display_line.setParentItem(line)
@@ -315,18 +314,16 @@ class Canvas(QWidget):
         x = event.pos().x()
         y = event.pos().y() 
         
-
-
         if self.mode == "Arrow":
-            if self.parentScene.selectedItems():
+            if self.selectedItems():
                 # If a polygon is selected update the polygons position with the corresponding mouse movement
-                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
-                    self.parentScene.selectedItems()[0].moveBy(x - event.lastPos().x(), y - event.lastPos().y())
+                if isinstance(self.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
+                    self.selectedItems()[0].moveBy(x - event.lastPos().x(), y - event.lastPos().y())
                 # If a circle is selected update the circles position with the corresponding mouse movement and
                 # update the parent polygon with the changed corner
-                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
+                if isinstance(self.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
 
-                    circ = self.parentScene.selectedItems()[0]
+                    circ = self.selectedItems()[0]
                     poly = circ.parentItem()
 
                     # Check a area around the mouse point to search for any edges to snap to
@@ -391,7 +388,7 @@ class Canvas(QWidget):
                 if self.connecting_line:
                     self.connecting_line.setLine(QLineF(self.prev_point, QPointF(x, y)))
                 else:
-                    self.connecting_line = self.parentScene.addLine(QLineF(self.prev_point, QPointF(x, y)))
+                    self.connecting_line = self.addLine(QLineF(self.prev_point, QPointF(x, y)))
 
         if self.mode == "Draw rect":
             # This is to display the rectangle from the previous point to see where the new rectangle would occur
@@ -411,7 +408,7 @@ class Canvas(QWidget):
                     else:
                         self.connecting_rect.setRect(QRectF(self.prev_point, QPointF(x, y)))
                 else:
-                    self.connecting_rect = self.parentScene.addRect(QRectF(self.prev_point, QPointF(x, y)))
+                    self.connecting_rect = self.addRect(QRectF(self.prev_point, QPointF(x, y)))
 
     def poly_to_list(self, poly, scope: str):
         """Extract the points from a QGraphicsPolygonItem or a QPolygonF and return a list of all the containing QPointF
@@ -447,14 +444,11 @@ class MainView(QGraphicsView):
         super(MainView, self).__init__()
 
         # Crear escena para los items dentro del View
-        self.scene = QGraphicsScene(self)
-        self.setScene(self.scene)
+        self.canvas = Canvas()
+        self.setScene(self.canvas)
 
-        # Agregar el componente Canvas a la escena
-        self.canvas = Canvas(self)
-        self.scene.addWidget(self.canvas)
-
-        
+        # Asignar widget al View
+        print(self.canvas.sceneRect())
 
 
 class Window(QMainWindow):
@@ -464,14 +458,17 @@ class Window(QMainWindow):
         self.setWindowTitle("Pyside2 QGraphic View - Draw Test")
 
         self.view = MainView()
-        self.setCentralWidget(self.view)
 
         # Centrar en pantalla
         if screenSize is not None:
             center = (screenSize.width()/2, screenSize.height()/2)
             self.setGeometry(int(center[0]), int(center[1]), 640, 480)
+            self.view.setGeometry(int(center[0]), int(center[1]), 640, 480)
         else:
             self.setGeometry(0, 0, 640, 480)
+            self.view.setGeometry(0, 0, 640, 480)
+
+        self.setCentralWidget(self.view)
 
 
 
