@@ -11,7 +11,7 @@ import itertools
 class Canvas(QGraphicsScene):
     # * Canvas Component. Controls Drawing
     def __init__(self):
-        super(Canvas, self).__init__()
+        super(Canvas, self).__init__()    
 
         # Brushes y Pens
         self.greenBrush = QBrush(Qt.green)
@@ -70,20 +70,18 @@ class Canvas(QGraphicsScene):
             
 
     def mousePressEvent(self, e: QMouseEvent):
-        x = e.pos().x()
-        y = e.pos().y()
-
-        print(x, y)
-        print(self.selectedItems())
+        x = e.scenePos().x()
+        y = e.scenePos().y()
 
         if self.mode == "Arrow":
             if e.button() != 1:
                 # Return if button clicked is any is any other than left mouse
                 return
 
+            print(x,y)
 
             if self.selectedItems():
-
+                print(self.selectedItems())
                 if isinstance(self.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
                     for point in self.poly_to_list(self.selectedItems()[0], "Global"):
                         self.point_coord_list = np.delete(self.point_coord_list, np.where(
@@ -177,7 +175,7 @@ class Canvas(QGraphicsScene):
         self.add_poly_corners(poly)
         self.add_poly_edges(poly)
         poly.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
-        #poly.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
+        poly.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         return poly
 
     def add_poly_corners(self, poly_item):
@@ -191,7 +189,7 @@ class Canvas(QGraphicsScene):
             p.__setattr__("localIndex", int(i))
             p.setPos(point.x(), point.y())
             p.setFlag(QGraphicsItem.ItemIsSelectable)
-            #p.setFlag(QGraphicsItem.ItemIsMovable)
+            p.setFlag(QGraphicsItem.ItemIsMovable)
             self.point_coord_list = np.append(self.point_coord_list, [[p.x(), p.y()]], axis=0)
 
     def add_poly_edges(self, poly_item):
@@ -311,9 +309,9 @@ class Canvas(QGraphicsScene):
 
     def mouseMoveEvent(self, event):
         # When moving the mouse in the graphicsScene display coords in label
-        x = event.pos().x()
-        y = event.pos().y() 
-        
+        x = event.scenePos().x()
+        y = event.scenePos().y() 
+                
         if self.mode == "Arrow":
             if self.selectedItems():
                 # If a polygon is selected update the polygons position with the corresponding mouse movement
@@ -437,27 +435,14 @@ class Canvas(QGraphicsScene):
             self.mode = "Draw rect"
         print(self.mode)
 
-
-class MainView(QGraphicsView):
-    # * Window's Main View. The main camera per se
-    def __init__(self):
-        super(MainView, self).__init__()
-
-        # Crear escena para los items dentro del View
-        self.canvas = Canvas()
-        self.setScene(self.canvas)
-
-        # Asignar widget al View
-        print(self.canvas.sceneRect())
-
-
 class Window(QMainWindow):
     # * Main Application Window
     def __init__(self, screenSize=None):
         super(QMainWindow, self).__init__()
         self.setWindowTitle("Pyside2 QGraphic View - Draw Test")
 
-        self.view = MainView()
+        #-> Crear la escena de dibujo
+        self.initGraphicsView()
 
         # Centrar en pantalla
         if screenSize is not None:
@@ -470,8 +455,10 @@ class Window(QMainWindow):
 
         self.setCentralWidget(self.view)
 
-
-
+    def initGraphicsView(self):
+        self.scene = Canvas()
+        self.view = QGraphicsView(self.scene, self)
+        self.view.setMouseTracking(True)
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
