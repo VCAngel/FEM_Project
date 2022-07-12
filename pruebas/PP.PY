@@ -1,10 +1,11 @@
 from tkinter import Y
-from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsItem, QWidget
+from PyQt5.QtWidgets import QApplication, QMainWindow, QGraphicsView, QGraphicsScene, QGraphicsItem, QWidget, QGraphicsEllipseItem, QGraphicsSceneMouseEvent
 from PyQt5.QtGui import QBrush, QPen, QPolygonF, QColor
 from PyQt5.QtCore import Qt, QRectF, QPointF, QLineF
 import sys
 import numpy as np
 import PyQt5
+import itertools
 
 
 class Canvas(QWidget):
@@ -46,6 +47,7 @@ class Canvas(QWidget):
         self.LUBronze_dark = QColor(146, 87, 10)
 
         self.mode="Draw poly"
+
         self.setMouseTracking(True)
         
 
@@ -61,17 +63,9 @@ class Canvas(QWidget):
         super(Canvas, self).mouseReleaseEvent(event)
         # If a point or polygon is selected releasing the mouse will de-select the object and add the
         # current coordinates back to the global coordinate list to update to the new position
+        print("A")
         if self.mode == "Arrow":
-            print("a")
-            if self.parentScene.selectedItems():
-                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
-                    for point in self.poly_to_list(self.parentScene.selectedItems()[0], "Global"):
-                        self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
-                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
-                    point = self.parentScene.selectedItems()[0].scenePos()
-                    self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
-                    print("Node moved to (" + str(point.x()) + " , " + str(-point.y()) + ")")
-            self.clearSelection()        
+            self.parentScene.clearSelection() 
             
 
     def mousePressEvent(self, e):
@@ -83,19 +77,8 @@ class Canvas(QWidget):
                 # Return if button clicked is any is any other than left mouse
                 return
             super(Canvas, self).mousePressEvent(e)
-
             if self.parentScene.selectedItems():
-                print("A")
-                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
-                    for point in self.poly_to_list(self.parentScene.selectedItems()[0], "Global"):
-                        self.point_coord_list = np.delete(self.point_coord_list, np.where(
-                            np.all(self.point_coord_list == [[point.x(), point.y()]], axis=1))[0][0], axis=0)
-                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
-                    self.prev_selected_point = self.parentScene.selectedItems()[0]
-                    point = self.parentScene.selectedItems()[0].scenePos()
-                    self.point_coord_list = np.delete(self.point_coord_list, np.where(
-                        np.all(self.point_coord_list == [[point.x(), point.y()]], axis=1))[0][0], axis=0)
-                
+                print(self.parentScene.selectedItems())
 
         if self.mode == "Draw poly":
             if e.button() == 2:
@@ -171,7 +154,6 @@ class Canvas(QWidget):
                 self.add_poli(self.drawing_rect)
                 self.remove_drawing_rect()
 
-
     def add_poli(self, polygon):
         poly = self.parentScene.addPolygon(polygon, QPen(QColor(0, 0, 0, 0)), QBrush(QColor(0, 0, 0, 50)))
         self.polyList.append(poly)
@@ -242,10 +224,79 @@ class Canvas(QWidget):
         self.connecting_rect = None
         self.newPoly = True
     
+    def move_node(self, circ, poly, new_x, new_y):
+        """
+        Update the corner of a polygon when dragging a corner circle of the polygon
+        """
+        poly_list = self.poly_to_list(poly,
+                                      "Local")  # Extract the position of the polygon points before moving the point
+
+        temp_point = QGraphicsEllipseItem()
+        temp_point.setPos(new_x, new_y)
+        if temp_point.pos() in self.poly_to_list(poly, "Global"):  # Do not allow overlap of two points in same polygon
+            return
+
+        index = poly_list.index(circ.pos())  # Get the selected circles index in the polygon
+
+        circ.setPos(new_x - poly.scenePos().x(), new_y - poly.scenePos().y())  # Move the selected circle
+
+        poly_list[index] = circ.pos()  # Update the coords of the point in the polygon list
+        poly.setPolygon(QPolygonF(poly_list))  # Update the polygon with the new list
+
+        # Loop through all the edges of the polygon to determine which two lines are connected to the moved point,
+        # update these edges with the new point to match the movement,also move any edge labeltext connected to the edge
+        # based on that we know that the connected lines are one with the same index as the corner point and one with
+        # index-1
+        # exception case 1:  when selecting corner with index 0, then we use that the last edge is indexed with a
+        # negative sign
+        # exception case 2: when selecting corner with highest index last edge is indexed with a negative sign,
+        # catch this with a special if statement for the highest index
+        for item in poly.childItems():
+            if isinstance(item, PyQt5.QtWidgets.QGraphicsLineItem):
+                if circ.localIndex == 0:
+                    if item.localIndex < 0:
+                        line = item.line()
+                        line.setP2(circ.pos())
+                        item.setLine(line)
+                        item.childItems()[0].setLine(line)
+                        if item.childItems()[0].childItems():
+                            text = item.childItems()[0].childItems()[0]
+                            text.setPos((item.line().x1() + item.line().x2()) / 2,
+                                        (item.line().y1() + item.line().y2()) / 2)
+                if item.localIndex == circ.localIndex:
+                    line = item.line()
+                    line.setP2(circ.pos())
+                    item.setLine(line)
+                    item.childItems()[0].setLine(line)
+                    if item.childItems()[0].childItems():
+                        text = item.childItems()[0].childItems()[0]
+                        text.setPos((item.line().x1() + item.line().x2()) / 2,
+                                    (item.line().y1() + item.line().y2()) / 2)
+                if item.localIndex == circ.localIndex + 1:
+                    line = item.line()
+                    line.setP1(circ.pos())
+                    item.setLine(line)
+                    item.childItems()[0].setLine(line)
+                    if item.childItems()[0].childItems():
+                        text = item.childItems()[0].childItems()[0]
+                        text.setPos((item.line().x1() + item.line().x2()) / 2,
+                                    (item.line().y1() + item.line().y2()) / 2)
+                if circ.localIndex == poly.polygon().size() - 1:
+                    if item.localIndex < 0:
+                        line = item.line()
+                        line.setP1(circ.pos())
+                        item.setLine(line)
+                        item.childItems()[0].setLine(line)
+                        if item.childItems()[0].childItems():
+                            text = item.childItems()[0].childItems()[0]
+                            text.setPos((item.line().x1() + item.line().x2()) / 2,
+                                        (item.line().y1() + item.line().y2()) / 2)
+
     def mouseMoveEvent(self, event):
         # When moving the mouse in the graphicsScene display coords in label
         x = event.pos().x()
         y = event.pos().y() 
+        
         if self.mode == "Draw poly":
             # This is to display the line in the polygon from the previous point to see where the new line would occur
             if self.newPoly:
@@ -277,6 +328,7 @@ class Canvas(QWidget):
                         self.connecting_rect.setRect(QRectF(self.prev_point, QPointF(x, y)))
                 else:
                     self.connecting_rect = self.parentScene.addRect(QRectF(self.prev_point, QPointF(x, y)))
+
     def poly_to_list(self, poly, scope: str):
         """Extract the points from a QGraphicsPolygonItem or a QPolygonF and return a list of all the containing QPointF
         , scope to be chosen as Global return scene coordinates otherwise returns local coordinates """
@@ -318,7 +370,6 @@ class MainView(QGraphicsView):
         self.canvas = Canvas(self)
         self.scene.addWidget(self.canvas)
 
-
 class Window(QMainWindow):
     # * Main Application Window
     def __init__(self, screenSize=None):
@@ -334,10 +385,6 @@ class Window(QMainWindow):
             self.setGeometry(int(center[0]), int(center[1]), 640, 480)
         else:
             self.setGeometry(0, 0, 640, 480)
-        self.setMouseTracking(True) 
-
-
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
