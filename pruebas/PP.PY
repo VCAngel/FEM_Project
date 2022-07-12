@@ -65,6 +65,18 @@ class Canvas(QWidget):
         # current coordinates back to the global coordinate list to update to the new position
         print("A")
         if self.mode == "Arrow":
+<<<<<<< HEAD
+=======
+            print("B")
+            if self.parentScene.selectedItems():
+                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
+                    for point in self.poly_to_list(self.parentScene.selectedItems()[0], "Global"):
+                        self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)
+                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
+                    print("C")
+                    point = self.parentScene.selectedItems()[0].scenePos()
+                    self.point_coord_list = np.append(self.point_coord_list, [[point.x(), point.y()]], axis=0)   
+>>>>>>> e62647a83e3b79153399fa7dc448562854706daa
             self.parentScene.clearSelection() 
             
 
@@ -79,6 +91,19 @@ class Canvas(QWidget):
             super(Canvas, self).mousePressEvent(e)
             if self.parentScene.selectedItems():
                 print(self.parentScene.selectedItems())
+<<<<<<< HEAD
+=======
+
+                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
+                    for point in self.poly_to_list(self.parentScene.selectedItems()[0], "Global"):
+                        self.point_coord_list = np.delete(self.point_coord_list, np.where(
+                            np.all(self.point_coord_list == [[point.x(), point.y()]], axis=1))[0][0], axis=0)
+                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
+                    self.prev_selected_point = self.parentScene.selectedItems()[0]
+                    point = self.parentScene.selectedItems()[0].scenePos()
+                    self.point_coord_list = np.delete(self.point_coord_list, np.where(
+                        np.all(self.point_coord_list == [[point.x(), point.y()]], axis=1))[0][0], axis=0)
+>>>>>>> e62647a83e3b79153399fa7dc448562854706daa
 
         if self.mode == "Draw poly":
             if e.button() == 2:
@@ -297,6 +322,73 @@ class Canvas(QWidget):
         x = event.pos().x()
         y = event.pos().y() 
         
+<<<<<<< HEAD
+=======
+        if self.mode == "Arrow":
+            if self.parentScene.selectedItems():
+                # If a polygon is selected update the polygons position with the corresponding mouse movement
+                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
+                    self.parentScene.selectedItems()[0].moveBy(x - event.lastPos().x(), y - event.lastPos().y())
+                # If a circle is selected update the circles position with the corresponding mouse movement and
+                # update the parent polygon with the changed corner
+                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsEllipseItem):
+
+                    circ = self.parentScene.selectedItems()[0]
+                    poly = circ.parentItem()
+
+                    # Check a area around the mouse point to search for any edges to snap to
+                    edge_point_list = []
+                    temp_edge_list = []
+                    for edge in self.edgeList:
+                        if edge in poly.childItems():
+                            pass  # If the edge is in the parent polygon pass to avoid snapping to self
+                        else:
+                            temp_edge_list.append(edge)
+                    # Check a square area with width 10 if there is any edge that contains the point, store all edges
+                    # that contains a point
+                    # Most inefficient part of the code, noticeable lag when creating many edges in the canvas
+                    for i, j in itertools.product(range(-10, 10), range(-10, 10)):
+                        for edge in temp_edge_list:
+                            p = QPointF(0, 0)
+                            p.setX(x + i - edge.scenePos().x())
+                            p.setY(y + j - edge.scenePos().y())
+                            if edge.contains(p):
+                                edge_point_list.append([x + i, y + j])
+
+                    smallest = np.inf
+                    edge_point_list = np.array(edge_point_list)
+                    # Loop through all potential points, if they exist, and choose the one closest to the mouse pointer
+                    # as the point to snap to
+                    for coords in edge_point_list:
+                        dist = np.linalg.norm(coords - np.array([event.scenePos().x(), event.scenePos().y()]))
+                        if dist < smallest:
+                            smallest = dist
+                            x = coords[0]
+                            y = coords[1]
+                            # All points that are at some point in time snapped are added to the potentialEdgeSplitters
+                            # to avoid having to loop through all points in later stages
+                            if circ not in self.potential_edge_splitters:
+                                self.potential_edge_splitters.append(circ)
+
+                    # After check if there are any points to snap to, priority to snap to points over edges
+                    # Add a templist and remove own points to avoid snapping with self
+                    templist = self.point_coord_list
+                    for point in self.poly_to_list(poly, "Global"):
+                        if point == circ.scenePos():
+                            pass  # This point has already been removed, catch to avoid error in deletion
+                        else:
+                            templist = np.delete(templist,
+                                                 np.where(np.all(templist == [[point.x(), point.y()]], axis=1))[0][0],
+                                                 axis=0)
+                    # Check if any point in the global point list is within snapping threshold, if so snap to that point
+                    if (np.linalg.norm(templist - [x, y], axis=1) < 10).any():
+                        coords = templist[np.where((np.linalg.norm(templist - [x, y], axis=1) < 10))]
+                        x = coords[0][0]
+                        y = coords[0][1]
+                    # Move corner of the polygon to the new x and y, if no snapping has occurred it is the mouse coords
+                    self.move_node(circ, poly, x, y)
+
+>>>>>>> e62647a83e3b79153399fa7dc448562854706daa
         if self.mode == "Draw poly":
             # This is to display the line in the polygon from the previous point to see where the new line would occur
             if self.newPoly:
@@ -356,6 +448,7 @@ class Canvas(QWidget):
             self.mode = "Draw rect"
         print(self.mode)
 
+<<<<<<< HEAD
 
 class MainView(QGraphicsView):
     # * Window's Main View. The main camera per se
@@ -369,15 +462,29 @@ class MainView(QGraphicsView):
         # Agregar el componente Canvas a la escena
         self.canvas = Canvas(self)
         self.scene.addWidget(self.canvas)
+=======
+import sys
+>>>>>>> e62647a83e3b79153399fa7dc448562854706daa
 
 class Window(QMainWindow):
-    # * Main Application Window
-    def __init__(self, screenSize=None):
-        super(QMainWindow, self).__init__()
-        self.setWindowTitle("Pyside2 QGraphic View - Draw Test")
+    def __init__(self):
+        super().__init__()
 
-        self.view = MainView()
-        self.setCentralWidget(self.view)
+        self.title = "PyQt5 QGraphicView"
+        self.top = 200
+        self.left = 500
+        self.width = 600
+        self.height = 500
+
+
+        
+
+
+
+    def InitWindow(self):
+        self.setWindowIcon(QtGui.QIcon("icon.png"))
+        self.setWindowTitle(self.title)
+        self.setGeometry(self.left, self.top, self.width, self.height)
 
         # Centrar en pantalla
         if screenSize is not None:
@@ -385,14 +492,21 @@ class Window(QMainWindow):
             self.setGeometry(int(center[0]), int(center[1]), 640, 480)
         else:
             self.setGeometry(0, 0, 640, 480)
+<<<<<<< HEAD
+=======
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv)
-    screen = app.primaryScreen()
+        self.show()
+    
 
-    # Crear ventana
-    window = Window(screen.size())
-    # Mostrar ventana
-    window.show()
+    def createGraphicView(self):
+        self.scene  = QGraphicsScene()
+        self.greenBrush = QBrush(Qt.green)
+        self.grayBrush = QBrush(Qt.gray)
+
+        self.pen = QPen(Qt.red)
+>>>>>>> e62647a83e3b79153399fa7dc448562854706daa
+
+        graphicView = QGraphicsView(self.scene, self)
+        graphicView.setGeometry(0,0,600,500)
 
     sys.exit(app.exec_())

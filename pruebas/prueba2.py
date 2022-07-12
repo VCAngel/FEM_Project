@@ -80,8 +80,7 @@ class Canvas(QWidget):
 
                     # Add a x- and y- editor for each point of the polygon
                     for point in self.poly_to_list(poly, "Global"):
-                        validator = QRegExpValidator(
-                            QRegExp("\\-*\\d*\\.\\d+"))
+                        validator = QRegExpValidator(QRegExp("\\-*\\d*\\.\\d+"))
 
                         print("x", point.x())
                         print("y", point.y())
@@ -89,26 +88,23 @@ class Canvas(QWidget):
                         label_x.setValidator(validator)
                         label_y = QLineEdit(str(-point.y()))
                         label_y.setValidator(validator)
-
+                        
                         index += 1
 
                     def update():
-                        # Update the polygon with the new edited values
-                        i = 0
-                        for child_item in poly.childItems():
-                            if isinstance(child_item, PyQt5.QtWidgets.QGraphicsEllipseItem):
-                                if child_item.localIndex == i:
-                                    x = float(grid.itemAtPosition(
-                                        i, 0).widget().text())
-                                    y = - \
-                                        float(grid.itemAtPosition(
-                                            i, 1).widget().text())
-                                    circ = child_item
-                                    self.move_node(circ, poly, x, y)
-                                    point = circ.scenePos()
-                                    self.point_coord_list = np.append(self.point_coord_list,
-                                                                      [[point.x(), point.y()]], axis=0)
-                                    i += 1
+                            # Update the polygon with the new edited values
+                            i = 0
+                            for child_item in poly.childItems():
+                                if isinstance(child_item, PyQt5.QtWidgets.QGraphicsEllipseItem):
+                                    if child_item.localIndex == i:
+                                        x = float(grid.itemAtPosition(i, 0).widget().text())
+                                        y = -float(grid.itemAtPosition(i, 1).widget().text())
+                                        circ = child_item
+                                        self.move_node(circ, poly, x, y)
+                                        point = circ.scenePos()
+                                        self.point_coord_list = np.append(self.point_coord_list,
+                                                                          [[point.x(), point.y()]], axis=0)
+                                        i += 1
 
     def mousePressEvent(self, e):
         x = e.pos().x()
@@ -195,18 +191,17 @@ class Canvas(QWidget):
 
     def add_poli(self, polygon, holeMode):
         if holeMode:
-            poly = self.parentScene.addPolygon(polygon, QPen(
-                QColor(0, 0, 0, 0)), QBrush(QColor(255, 255, 255)))
+            poly = self.parentScene.addPolygon(polygon, QPen(QColor(0, 0, 0, 0)), QBrush(QColor(255, 255, 255)))
             poly.setZValue(1)
             self.polyList.append(poly)
             self.holeList.append(poly)
         else:
-            poly = self.parentScene.addPolygon(polygon, QPen(
-                QColor(0, 0, 0, 0)), QBrush(QColor(0, 0, 0, 50)))
+            poly = self.parentScene.addPolygon(polygon, QPen(QColor(0, 0, 0, 0)), QBrush(QColor(0, 0, 0, 50)))
             self.polyList.append(poly)
-
         self.add_poly_corners(poly)
         self.add_poly_edges(poly)
+        #poly.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+        #poly.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         return poly
 
     def add_poly_corners(self, poly_item):
@@ -221,8 +216,9 @@ class Canvas(QWidget):
             p.setParentItem(poly_item)
             p.__setattr__("localIndex", int(i))
             p.setPos(point.x(), point.y())
-            self.point_coord_list = np.append(
-                self.point_coord_list, [[p.x(), p.y()]], axis=0)
+            #p.setFlag(QGraphicsItem.ItemIsSelectable)
+            #p.setFlag(QGraphicsItem.ItemIsMovable)
+            self.point_coord_list = np.append(self.point_coord_list, [[p.x(), p.y()]], axis=0)
 
     def add_poly_edges(self, poly_item):
 
@@ -348,8 +344,8 @@ class Canvas(QWidget):
     def mouseMoveEvent(self, event):
         # When moving the mouse in the graphicsScene display coords in label
         x = event.pos().x()
-        y = event.pos().y()
-
+        y = event.pos().y() 
+        
         if self.mode == "Draw poly":
             # This is to display the line in the polygon from the previous point to see where the new line would occur
             if self.newPoly:
@@ -432,8 +428,116 @@ class Canvas(QWidget):
             self.holeMode = True
         elif e.key() == Qt.Key_F2:
             self.holeMode = False
+        
+        if e.key() ==Qt.Key_F3:
+            for poly in self.polyList:
+                if self.polygon_contains_other_polygon(poly):
+                    pass
+                else:
+                    self.polyList.append(self.polyList.pop(self.polyList.index(poly)))
+            for poly in self.polyList:
+                if poly in self.holeList:
+                    continue
+
+                # Check for polygons overlapping eachother and warn user if any
+                if self.polygon_overlaps_other_polygon(poly):
+                    print("overlaps")
+
+                # Check if polygon intersects itself and warn user if true
+                lines = []
+                for item in poly.childItems():
+                    if isinstance(item, QGraphicsLineItem):
+                        lines.append(item)
+
+                for a, b in itertools.combinations(lines, 2):
+                    if a.collidesWithItem(b):
+                        if a.line().p1() == b.line().p1() or a.line().p1() == b.line().p2():
+                            pass
+                        elif a.line().p2() == b.line().p1() or a.line().p2() == b.line().p2():
+                            pass
+                        else:
+                            self.intersection_error()
+                            return None
+
+                # Check if there are any holes inside the polygon
+                for hole in self.polygon_contains_holes(poly):
+                    return self.polygon_contains_holes
+
+                for inner_poly in self.polygon_contains_other_polygon(poly):
+                    return self.polygon_contains_other_polygon
         print(self.mode)
         print(self.holeMode)
+
+    def polygon_contains(self, poly_outer, poly_inner):
+        """
+        Checks if a inner polygon is fully contained by a outer polygon, returns a list with boolean values of all
+        points in the inner triangle which holds value true if contained and false else. Not that values on the border
+        do not count as contained
+        """
+        inner_list = self.poly_to_list(poly_inner, "Global")
+        contain_list = []
+        # Loop over all points in the inner polygon to see if they are contained by the outer polygon
+        for point in inner_list:
+            # Points are defined in local coordinates, move them so they are both in the local coordinates
+            # # of the outer polygon
+            p_x = point.x() - poly_outer.x()
+            p_y = point.y() - poly_outer.y()
+            point.setX(p_x)
+            point.setY(p_y)
+
+            # Check if the outer polygon contains none, some, or all of the points
+            if poly_outer.contains(point):
+                true_contain = []
+                # check a square area around the point to see if the whole square is contained, else the point
+                # is on a edge and should not be included
+                for i, j in itertools.product(range(-1, 2), range(-1, 2)):
+                    point.setX(p_x + i)
+                    point.setY(p_y + j)
+                    if poly_outer.contains(point):
+                        true_contain.append(True)
+                    else:
+                        true_contain.append(False)
+                # Add to contain_list if the whole square area is inside the outer polygon
+                if all(true_contain):
+                    contain_list.append(True)
+                else:
+                    contain_list.append(False)
+            else:
+                contain_list.append(False)
+        return contain_list
+
+    def polygon_contains_holes(self, outer_poly):
+        """Check if the polygon fully contains any hole object, return a list of the contained hole objects"""
+        contain_list = []
+        for hole_polygon in self.holeList:
+            if all(self.polygon_contains(outer_poly, hole_polygon)):
+                contain_list.append(hole_polygon)
+                print("Agujeros")
+        return contain_list
+
+    def polygon_contains_other_polygon(self, outer_poly):
+        """Check if the polygon fully contains any other polygon, return a list of the contained polygon objects"""
+        contain_list = []
+        for inner_poly in self.polyList:
+            if outer_poly == inner_poly:
+                pass
+            elif all(self.polygon_contains(outer_poly, inner_poly)):
+                contain_list.append(inner_poly)
+                print("contain")
+        return contain_list
+
+    def polygon_overlaps_other_polygon(self, outer_poly):
+        """ Check if a polygon overlaps any other polygon in the scene"""
+        contain_list = []
+        for inner_poly in self.polyList:
+            if outer_poly == inner_poly:
+                pass
+            elif all(self.polygon_contains(outer_poly, inner_poly)):
+                print("todo overlap")
+            elif any(self.polygon_contains(outer_poly, inner_poly)):
+                contain_list.append(inner_poly)
+                print("Overlap otro poligono")
+        return contain_list
 
 
 class MainView(QGraphicsView):
@@ -451,10 +555,8 @@ class MainView(QGraphicsView):
 
     def mouseDoubleClickEvent(self, event):
         self.canvas.mouseDoubleClickEvent(event)
-
     def keyPressEvent(self, event):
         self.canvas.keyPressEvent(event)
-
 
 class Window(QMainWindow):
     # * Main Application Window
@@ -471,7 +573,6 @@ class Window(QMainWindow):
             self.setGeometry(int(center[0]), int(center[1]), 640, 480)
         else:
             self.setGeometry(0, 0, 640, 480)
-
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
