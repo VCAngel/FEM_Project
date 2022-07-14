@@ -50,10 +50,9 @@ class Canvas(QWidget):
         self.LUBronze = QColor(156, 97, 20)
         self.LUBronzeDark = QColor(146, 87, 10)
 
-        self.mode="Draw poly" 
+        self.mode = "Draw poly"
 
         self.setMouseTracking(True)
-        
 
     def paint(self, painter, option, widget):
         painter.setOpacity(1)
@@ -68,8 +67,8 @@ class Canvas(QWidget):
         # If a point or polygon is selected releasing the mouse will de-select the object and add the
         # current coordinates back to the global coordinate list to update to the new position
         if self.mode == "Arrow":
-            self.parentScene.clearSelection() 
-            
+            self.parentScene.clearSelection()
+
     def mouseDoubleClickEvent(self, event):
         if self.mode == "Arrow":
             super(Canvas, self).mouseDoubleClickEvent(event)
@@ -201,7 +200,7 @@ class Canvas(QWidget):
             self.polyList.append(poly)
         self.addPolyCorners(poly)
         self.addPolyEdges(poly)
-        poly.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+        #poly.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         #poly.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable)
         return poly
 
@@ -215,7 +214,7 @@ class Canvas(QWidget):
             p.setParentItem(polyItem)
             p.__setattr__("localIndex", int(i))
             p.setPos(point.x(), point.y())
-            p.setFlag(QGraphicsItem.ItemIsSelectable)
+            #p.setFlag(QGraphicsItem.ItemIsSelectable)
             #p.setFlag(QGraphicsItem.ItemIsMovable)
             self.pointCoordList = np.append(self.pointCoordList, [[p.x(), p.y()]], axis=0)
 
@@ -267,32 +266,35 @@ class Canvas(QWidget):
         self.newPoly = True
     
     def moveNode(self, circ, poly, newX, newY):
-        """
-        Update the corner of a polygon when dragging a corner circle of the polygon
-        """
+        # En teoria se utiliza para actualizar los puntos, las coodenadas de los puntos en las listas
         polyList = self.polyToList(poly,
-                                      "Local")  # Extract the position of the polygon points before moving the point
+                                      "Local")
+        # Extrae las posicion de los puntos del poligono antes de mover el punto
 
         tempPoint = QGraphicsEllipseItem()
         tempPoint.setPos(newX, newY)
-        if tempPoint.pos() in self.polyToList(poly, "Global"):  # Do not allow overlap of two points in same polygon
+        if tempPoint.pos() in self.polyToList(poly, "Global"):
             return
+        # No permite que se sobrepongan dos puntos en el mismo poligono
 
-        index = polyList.index(circ.pos())  # Get the selected circles index in the polygon
+        index = polyList.index(circ.pos())  
+        # Consigue el index del circulo seleccionado
 
-        circ.setPos(newX - poly.scenePos().x(), newY - poly.scenePos().y())  # Move the selected circle
+        circ.setPos(newX - poly.scenePos().x(), newY - poly.scenePos().y())  
+        # Mueve el circulo seleccionado
 
-        polyList[index] = circ.pos()  # Update the coords of the point in the polygon list
-        poly.setPolygon(QPolygonF(polyList))  # Update the polygon with the new list
+        polyList[index] = circ.pos()  
+        # Actualiza las coordenadas del punto en la lista de poligonos
 
-        # Loop through all the edges of the polygon to determine which two lines are connected to the moved point,
-        # update these edges with the new point to match the movement,also move any edge labeltext connected to the edge
-        # based on that we know that the connected lines are one with the same index as the corner point and one with
-        # index-1
-        # exception case 1:  when selecting corner with index 0, then we use that the last edge is indexed with a
-        # negative sign
-        # exception case 2: when selecting corner with highest index last edge is indexed with a negative sign,
-        # catch this with a special if statement for the highest index
+        poly.setPolygon(QPolygonF(polyList))  
+        # Actualiza el poligono con la nueva lista
+
+        # Hace loop a todos los bordes del poligono para determinar que dos lineas estan conectadas al punto que movimos
+        # actualiza esos bordes con el nuevo punto
+        # las lineas que lo se conectan con este punto son: la que tiene el mismo index que el punto y la que tiene el index-1
+        # excepcion 1: cuando seleccionamos el index 0, en este caso utilizamos el ultimo borde indexandalo con un indice negativo
+        # excepcion 2: cuando escogemos el borde con el index mayor, el ultimo inex esta indexado con un simbolo negativo
+        # en este caso lo atrapamos con un if
         for item in poly.childItems():
             if isinstance(item, PyQt5.QtWidgets.QGraphicsLineItem):
                 if circ.localIndex == 0:
@@ -335,29 +337,35 @@ class Canvas(QWidget):
                                         (item.line().y1() + item.line().y2()) / 2)
 
     def mouseMoveEvent(self, event):
-        # When moving the mouse in the graphicsScene display coords in label
+        # Conseguimos las coordenadas X y Y del mouse cada vez que se mueve
         x = event.pos().x()
         y = event.pos().y() 
         
         if self.mode == "Draw poly":
-            # This is to display the line in the polygon from the previous point to see where the new line would occur
+            # Esto muestra la linea desde el punto anterior a la posicion del mouse
             if self.newPoly:
-                pass  # Don't draw if the first point has not been initiated
+                pass  # No dibuja nada si el primer punto no ha sido dibujado
             else:
-                # else if there is an existing line update that one with new x,y, if no line create a new one with
-                # end point at x,y
+
+                # Si ya existe un punto hay dos casos:
+                
                 if self.connectingLine:
                     self.connectingLine.setLine(QLineF(self.prevPoint, QPointF(x, y)))
+                    # Caso 1: si ya existe una linea, actualiza las coordenadas finales con la posicion del mouse
                 else:
                     self.connectingLine = self.parentScene.addLine(QLineF(self.prevPoint, QPointF(x, y)))
+                    # caso 2: si no hay una linea creada, crea una con el punto inicial en 
+                    # slas coordenadas del punto anterior y la coordenada final 
+                    # en la posicion del mouse.
 
         if self.mode == "Draw rect":
-            # This is to display the rectangle from the previous point to see where the new rectangle would occur
+            # Muestra el rectangulo de ayuda desde el punto anterior hasta la posicion actual del mouse
             if self.newPoly:
-                pass  # Don't draw if the first point has not been initiated
+                pass  # Si el primer punto no ha sido dibujado, no dibuja nada
             else:
-                # else if there is an existing rectangle update that one with new x,y, if no rectangle create a new one
+                # Si el primer punto ya fue dibujado
                 if self.connectingRect:
+                    # Si existe un rectangulo lo actualiza con la posicion actual del mouse
                     if self.prevPoint.x() > x and self.prevPoint.y() > y:
                         self.connectingRect.setRect(QRectF(QPointF(x, y), self.prevPoint))
                     elif self.prevPoint.x() > x:
@@ -369,16 +377,17 @@ class Canvas(QWidget):
                     else:
                         self.connectingRect.setRect(QRectF(self.prevPoint, QPointF(x, y)))
                 else:
+                    #Si no existe un rectangulo crea uno nuevo
                     self.connectingRect = self.parentScene.addRect(QRectF(self.prevPoint, QPointF(x, y)))
 
     def polyToList(self, poly, scope: str):
-        """Extract the points from a QGraphicsPolygonItem or a QPolygonF and return a list of all the containing QPointF
-        , scope to be chosen as Global return scene coordinates otherwise returns local coordinates """
+        # Extrae lo puntos de un QGraphicsPolygonItem o un QPolygonF y regresa una lista de todos los QPointF que contiene
+        # si el scoope es global regresa las coordenadas de la escena, si no regresa las coordenadas locales
         innerList = []
         x = 0
         y = 0
 
-        # To be able to handle input as both QGraphicsPolygonItem and QPolygonF
+        # Para que pueda manejar QGraphicsPolygonItem y QPolygonF como inputs
         if isinstance(poly, PyQt5.QtWidgets.QGraphicsPolygonItem):
             if scope == "Global":
                 x = poly.x()
@@ -389,13 +398,28 @@ class Canvas(QWidget):
             innerList.append(QPointF(poly.at(i).x() + x, poly.at(i).y() + y))
         return innerList
 
+    def enablePolygonSelect(self, enabled=True):
+        # Cambia la etiqueta del poligono para que pueda ser seleccionado o no
+        for poly in self.polyList:
+            if isinstance(poly, QGraphicsPolygonItem):
+                if enabled:
+                    poly.setFlag(
+                        QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+                else:
+                    poly.setFlag(
+                        QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, enabled)
+
     def keyPressEvent(self, e):
         if e.key() == Qt.Key_F5:
             self.mode = "Arrow"
+            self.enablePolygonSelect()
+
         elif e.key() == Qt.Key_F6:
             self.mode = "Draw poly"
+            self.enablePolygonSelect(False)
         elif e.key() == Qt.Key_F7:
             self.mode = "Draw rect"
+            self.enablePolygonSelect(False)
 
         if e.key() == Qt.Key_F1:
             self.holeMode = True
@@ -403,20 +427,23 @@ class Canvas(QWidget):
             self.holeMode = False
         
         if e.key() ==Qt.Key_F3:
+            # Revisa si el algun poligono tiene otro poligono dentro o parcialmente dentro
+           
             for poly in self.polyList:
                 if self.polygonContainsOtherPolygon(poly):
                     pass
                 else:
                     self.polyList.append(self.polyList.pop(self.polyList.index(poly)))
+
             for poly in self.polyList:
                 if poly in self.holeList:
                     continue
 
-                # Check for polygons overlapping eachother and warn user if any
+                # Revisa si hay poligonos que se sobrepongan
                 if self.polygonOverlapsOtherPolygon(poly):
                     print("overlaps")
 
-                # Check if polygon intersects itself and warn user if true
+                # Revisa si hay poligonos que se intersecten
                 lines = []
                 for item in poly.childItems():
                     if isinstance(item, QGraphicsLineItem):
@@ -432,37 +459,39 @@ class Canvas(QWidget):
                             self.intersectionError()
                             return None
 
-                # Check if there are any holes inside the polygon
+                # Revisa si hay agujeros en algun poligono
                 for hole in self.polygonContainsHoles(poly):
-                    return self.polygonContainsHoles
+                    print("Contiene hoyos")
 
                 for innerPoly in self.polygonContainsOtherPolygon(poly):
-                    return self.polygonContainsOtherPolygon
+                    print("Contiene otro poligono")
         print(self.mode)
         print(self.holeMode)
 
     def polygonContains(self, polyOuter, polyInner):
-        """
-        Checks if a inner polygon is fully contained by a outer polygon, returns a list with boolean values of all
-        points in the inner triangle which holds value true if contained and false else. Not that values on the border
-        do not count as contained
-        """
+        # Revisa si un poligono interno esta totalmente contenido por un poligono exterior
+        # resgresa una lista de boorleanos con los valores de todos los puntos en el triangulo interior que contiene
+        # True si esta contenido False si no
+        # los valores de los bordes no son contados como contenidos
+        
         innerList = self.polyToList(polyInner, "Global")
         containList = []
-        # Loop over all points in the inner polygon to see if they are contained by the outer polygon
+
+        #Hace loop a todos los puntos en el poligono interior para ver si estan contenidos por el poligono exterior
         for point in innerList:
-            # Points are defined in local coordinates, move them so they are both in the local coordinates
-            # # of the outer polygon
+            # Los puntos estan definidos con coordenadas locales, los movemos para que ambos tengan las 
+            # coordenadas locales del poligono exterior
             pX = point.x() - polyOuter.x()
             pY = point.y() - polyOuter.y()
             point.setX(pX)
             point.setY(pY)
 
-            # Check if the outer polygon contains none, some, or all of the points
+            # Revisar si el poligono exterior contiene ninguno, alguno o todos los puntos
             if polyOuter.contains(point):
                 trueContain = []
-                # check a square area around the point to see if the whole square is contained, else the point
-                # is on a edge and should not be included
+                
+                # Revisar un area cuadrada alrededor del punto para ver si todo el cuadrado esta contenido, 
+                # si no esta en un borde y no debe ser incluido
                 for i, j in itertools.product(range(-1, 2), range(-1, 2)):
                     point.setX(pX + i)
                     point.setY(pY + j)
@@ -470,7 +499,8 @@ class Canvas(QWidget):
                         trueContain.append(True)
                     else:
                         trueContain.append(False)
-                # Add to containList if the whole square area is inside the outer polygon
+
+                # Lo agrega al containList si toda el area cuadrada esta dentro del poligono exterior
                 if all(trueContain):
                     containList.append(True)
                 else:
@@ -480,16 +510,16 @@ class Canvas(QWidget):
         return containList
 
     def polygonContainsHoles(self, outerPoly):
-        """Check if the polygon fully contains any hole object, return a list of the contained hole objects"""
+        # Revisa si el poligono contiene un objeto de tipo hoyo, regresa una lista de los objetos tipo agujeros que estan contenidos
         containList = []
         for holePolygon in self.holeList:
             if all(self.polygonContains(outerPoly, holePolygon)):
                 containList.append(holePolygon)
-                print("Agujeros")
         return containList
 
     def polygonContainsOtherPolygon(self, outerPoly):
-        """Check if the polygon fully contains any other polygon, return a list of the contained polygon objects"""
+        # Revisa si el poligono contiene totalmente cualquier otro poligono, regresa una lista de los objetos de tipo poligono que 
+        #estan contenidos
         containList = []
         for innerPoly in self.polyList:
             if outerPoly == innerPoly:
@@ -500,16 +530,15 @@ class Canvas(QWidget):
         return containList
 
     def polygonOverlapsOtherPolygon(self, outerPoly):
-        """ Check if a polygon overlaps any other polygon in the scene"""
+        # Revisa si un poligono esta transpuest con algun otro poligono en la escena
         containList = []
         for innerPoly in self.polyList:
             if outerPoly == innerPoly:
                 pass
             elif all(self.polygonContains(outerPoly, innerPoly)):
-                print("todo overlap")
+                pass
             elif any(self.polygonContains(outerPoly, innerPoly)):
                 containList.append(innerPoly)
-                print("Overlap otro poligono")
         return containList
 
 
