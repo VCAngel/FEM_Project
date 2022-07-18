@@ -4,15 +4,15 @@ from functools import cmp_to_key
 import sys
 import PyQt5
 import numpy as np
-from PyQt5.QtCore import QPointF, QLineF, QRectF, QRegExp, Qt, QRect
+from PyQt5.QtCore import QPointF, QLineF, QRectF, QRegExp, Qt
 from PyQt5.QtGui import QPen, QColor, QBrush, QPolygonF, QFont, QRegExpValidator
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QFileDialog, QGraphicsScene, \
-    QGraphicsItem, QGraphicsPolygonItem, QToolButton, QLabel, \
-    QGraphicsEllipseItem, QLineEdit, QFormLayout, QGraphicsLineItem, QGraphicsTextItem, QGridLayout, QPushButton, QGraphicsItem, QGraphicsView, \
-    QHBoxLayout
+    QGraphicsItem, QGraphicsPolygonItem, QToolButton, \
+    QGraphicsEllipseItem, QLineEdit, QFormLayout, QGraphicsLineItem, QGraphicsTextItem, QGridLayout, QPushButton, QGraphicsItem, QGraphicsView
 
 
 class Canvas(QWidget):
+    # * Canvas Component. Controls Drawing
     def __init__(self, helper):
         super(Canvas, self).__init__()
 
@@ -59,16 +59,18 @@ class Canvas(QWidget):
         self.setMouseTracking(True)
 
     def mouseReleaseEvent(self, event):
+        # ! No se utiliza por el momento.
         super(Canvas, self).mouseReleaseEvent(event)
         # If a point or polygon is selected releasing the mouse will de-select the object and add the
         # current coordinates back to the global coordinate list to update to the new position
         if self.mode == "Arrow":
-            self.parentScene.clearSelection() 
-            
+            self.parentScene.clearSelection()
+
     def mouseDoubleClickEvent(self, event):
+        #: Evento de doble click del mouse
         if self.mode == "Arrow":
             super(Canvas, self).mouseDoubleClickEvent(event)
-            # If in the surface view highlight the polygon to allow updating exact values of the corner points
+            # Si en la vista padre existe algún polígono seleccionado.
             if self.parentScene.selectedItems():
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
                     index = 0
@@ -85,8 +87,6 @@ class Canvas(QWidget):
                         label_y.setValidator(validator)
                         grid.addWidget(label_x, index, 0)
                         grid.addWidget(label_y, index, 1)
-                        print(point.x(),"X")
-                        print(point.y(),"Y")
                         index += 1
 
                     def update():
@@ -108,7 +108,6 @@ class Canvas(QWidget):
                     update_button.setStyleSheet("border: 2px solid rgb(0,0,128);")
                     grid.addWidget(update_button, index + 1, 1)
                     update_button.clicked.connect(update)
-
 
     def mousePressEvent(self, e):
         #: Evento de un click del mouse
@@ -565,28 +564,27 @@ class MainView(QGraphicsView):
         self.canvas = Canvas(self)
         self.scene.addWidget(self.canvas)
 
+
         self.widget = QWidget(self)
         self.widget.setGeometry(10,250,150, 100)
 
-
-        #Aqui agregan los labels 
         # Layout Label Widget Container
         self.layoutWid = QGridLayout(self.widget)
         self.widget.setLayout(self.layoutWid)
 
-        self.label1 = QLabel()
-        self.label1.setText("Label1")
-        self.layoutWid.addWidget(self.label1, 0, 0)
-        self.label2 = QLabel()
-        self.label2.setText("Label2")
-        self.layoutWid.addWidget(self.label2, 0, 1)
-        self.label3 = QLabel()
-        self.label3.setText("Label3")
-        self.layoutWid.addWidget(self.label3, 1, 0)
-        self.label4 = QLabel()
-        self.label4.setText("Label4")
-        self.layoutWid.addWidget(self.label4, 1, 1)
-
+        # self.label1 = QLabel()
+        # self.label1.setText("Label1")
+        # self.layoutWid.addWidget(self.label1, 0, 0)
+        # self.label2 = QLabel()
+        # self.label2.setText("Label2")
+        # self.layoutWid.addWidget(self.label2, 0, 1)
+        # self.label3 = QLabel()
+        # self.label3.setText("Label3")
+        # self.layoutWid.addWidget(self.label3, 1, 0)
+        # self.label4 = QLabel()
+        # self.label4.setText("Label4")
+        # self.layoutWid.addWidget(self.label4, 1, 1)
+        
     def mouseDoubleClickEvent(self, event):
         self.canvas.mouseDoubleClickEvent(event)
 
