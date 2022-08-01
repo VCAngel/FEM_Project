@@ -1,3 +1,4 @@
+from cmath import log
 import itertools
 from functools import cmp_to_key
 from operator import length_hint
@@ -35,6 +36,7 @@ class Canvas(QWidget):
         self.polyList = []
         self.edgeList = []
         self.holeList = []
+        self.labelsList = []
         
         self.pointCoordList = np.zeros((1, 2))
         self.connectingRect = None
@@ -71,6 +73,9 @@ class Canvas(QWidget):
             super(Canvas, self).mouseDoubleClickEvent(event)
             # If in the surface view highlight the polygon to allow updating exact values of the corner points
             if self.parentScene.selectedItems():
+                for label in  self.labelsList:
+                    label.setVisible(False);
+                self.labelsList = [];
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
                     index = 0
                     poly = self.parentScene.selectedItems()[0]
@@ -79,6 +84,9 @@ class Canvas(QWidget):
                     widget.setGeometry(10, 250, 150, len(self.polyToList(poly, "Global"))*50)
                     # Add a x- and y- editor for each point of the polygon
                     for point in self.polyToList(poly, "Global"):
+                        self.labelsList.append(self.parentScene.addText("Label"))
+                        self.labelsList[index].setPos(QPointF(point.x()-10, point.y()-10) - self.labelsList[index].boundingRect().center())
+
                         validator = QRegExpValidator(QRegExp("\\-*\\d*\\.\\d+"))
                         label_x = QLineEdit(str(point.x()))
                         label_x.setValidator(validator)
@@ -86,12 +94,13 @@ class Canvas(QWidget):
                         label_y.setValidator(validator)
                         grid.addWidget(label_x, index, 0)
                         grid.addWidget(label_y, index, 1)
-                        print(point.x(),"X")
-                        print(point.y(),"Y")
+                        print("x=",point.x(), end=", ")
+                        print("y=",point.y())
                         index += 1
 
                     def update():
                         # Update the polygon with the new edited values
+                        labelIndex = 0
                         i = 0
                         for child_item in poly.childItems():
                             if isinstance(child_item, PyQt5.QtWidgets.QGraphicsEllipseItem):
@@ -101,10 +110,12 @@ class Canvas(QWidget):
                                     circ = child_item
                                     self.moveNode(circ, poly, x, y)
                                     point = circ.scenePos()
+                                    self.labelsList[labelIndex].setPos(QPointF(point.x()-10, point.y()-10) - self.labelsList[labelIndex].boundingRect().center())
                                     self.pointCoordList = np.append(self.pointCoordList,
                                                                         [[point.x(), point.y()]], axis=0)
                                     i += 1
-
+                                labelIndex += 1
+                        
                     update_button = (QPushButton("Update"))
                     update_button.setStyleSheet("border: 2px solid rgb(0,0,128);")
                     grid.addWidget(update_button, index + 1, 1)
