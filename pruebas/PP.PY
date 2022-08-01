@@ -65,7 +65,7 @@ class Canvas(QWidget):
         if self.mode == "Arrow":
             self.parentScene.clearSelection() 
             
-    def mouseDoubleClickEvent(self, event):
+    def mouseDoubleClickEvent(self, event, layout):
         if self.mode == "Arrow":
             super(Canvas, self).mouseDoubleClickEvent(event)
             # If in the surface view highlight the polygon to allow updating exact values of the corner points
@@ -74,8 +74,8 @@ class Canvas(QWidget):
                     index = 0
                     poly = self.parentScene.selectedItems()[0]
                     scroll_area_widget_contents = QWidget()
-                    grid = QGridLayout(scroll_area_widget_contents)
-
+                    grid = layout
+                    
                     # Add a x- and y- editor for each point of the polygon
                     for point in self.polyToList(poly, "Global"):
                         validator = QRegExpValidator(QRegExp("\\-*\\d*\\.\\d+"))
@@ -98,9 +98,9 @@ class Canvas(QWidget):
                                     x = float(grid.itemAtPosition(i, 0).widget().text())
                                     y = -float(grid.itemAtPosition(i, 1).widget().text())
                                     circ = child_item
-                                    self.move_node(circ, poly, x, y)
+                                    self.moveNode(circ, poly, x, y)
                                     point = circ.scenePos()
-                                    self.point_coord_list = np.append(self.point_coord_list,
+                                    self.pointCoordList = np.append(self.pointCoordList,
                                                                         [[point.x(), point.y()]], axis=0)
                                     i += 1
 
@@ -574,21 +574,8 @@ class MainView(QGraphicsView):
         self.layoutWid = QGridLayout(self.widget)
         self.widget.setLayout(self.layoutWid)
 
-        self.label1 = QLabel()
-        self.label1.setText("Label1")
-        self.layoutWid.addWidget(self.label1, 0, 0)
-        self.label2 = QLabel()
-        self.label2.setText("Label2")
-        self.layoutWid.addWidget(self.label2, 0, 1)
-        self.label3 = QLabel()
-        self.label3.setText("Label3")
-        self.layoutWid.addWidget(self.label3, 1, 0)
-        self.label4 = QLabel()
-        self.label4.setText("Label4")
-        self.layoutWid.addWidget(self.label4, 1, 1)
-
     def mouseDoubleClickEvent(self, event):
-        self.canvas.mouseDoubleClickEvent(event)
+        self.canvas.mouseDoubleClickEvent(event, self.layoutWid)
 
 class Window(QMainWindow):
     # * Main Application Window
