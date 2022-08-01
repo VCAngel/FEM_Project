@@ -79,6 +79,8 @@ class Canvas(QWidget):
                     poly = self.parentScene.selectedItems()[0]
                     scroll_area_widget_contents = widget
                     grid = layout
+                    for i in reversed(range(layout.count())): 
+                        grid.itemAt(i).widget().deleteLater()
                     widget.setGeometry(10, 250, 200, len(self.polyToList(poly, "Global"))*50)
                     # Add a x- and y- editor for each point of the polygon
                     for point in self.polyToList(poly, "Global"):
@@ -94,6 +96,8 @@ class Canvas(QWidget):
                         label1.setText(text)    
                         layout.addWidget(label1, index, 2)
                         index += 1
+                        print(point.x(), "x pre")
+                        print(point.y(), "y pre")
 
                     def update():
                         # Update the polygon with the new edited values
@@ -103,6 +107,8 @@ class Canvas(QWidget):
                                 if child_item.localIndex == i:
                                     x = float(grid.itemAtPosition(i, 0).widget().text())
                                     y = -float(grid.itemAtPosition(i, 1).widget().text())
+                                    print(x, "x post")
+                                    print(y, "y post")
                                     circ = child_item
                                     self.moveNode(circ, poly, x, y)
                                     point = circ.scenePos()
