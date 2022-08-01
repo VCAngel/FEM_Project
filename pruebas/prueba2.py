@@ -68,11 +68,13 @@ class Canvas(QWidget):
 
     def mouseDoubleClickEvent(self, event):
         #: Evento de doble click del mouse
+
         if self.mode == "Arrow":
             super(Canvas, self).mouseDoubleClickEvent(event)
             # Si en la vista padre existe algún polígono seleccionado.
-            if self.selectedItems():
-                if isinstance(self.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
+            if self.parentScene.selectedItems():
+                # Si dicho polígono es instancia de QGraphicsPolygonItem
+                if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
                     index = 0
                     poly = self.selectedItems()[0]
                     scroll_area_widget_contents = QWidget()

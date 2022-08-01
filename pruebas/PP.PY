@@ -135,6 +135,7 @@ class Canvas(QWidget):
         y = e.pos().y()
         if self.mode == "Arrow":
             super(Canvas, self).mousePressEvent(e)
+
             # Si el botón presionado es otro al izquierdo del mouse
             if e.button() != 1:
                 return
@@ -369,7 +370,7 @@ class Canvas(QWidget):
         # Conseguimos las coordenadas X y Y del mouse cada vez que se mueve
         x = event.pos().x()
         y = event.pos().y() 
-        
+
         if self.mode == "Draw poly":
             # Esto muestra la linea desde el punto anterior a la posicion del mouse
             if self.newPoly:
