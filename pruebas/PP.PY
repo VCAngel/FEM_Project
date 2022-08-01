@@ -13,6 +13,9 @@ from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QFileDialog, QGr
     QGraphicsEllipseItem, QLineEdit, QFormLayout, QGraphicsLineItem, QGraphicsTextItem, QGridLayout, QPushButton, QGraphicsItem, QGraphicsView, \
     QHBoxLayout
 
+# self.label1 = QLabel()
+# self.label1.setText("Label1")
+# self.layoutWid.addWidget(self.label1, 0, 0)
 
 class Canvas(QWidget):
     def __init__(self, helper):
@@ -81,7 +84,9 @@ class Canvas(QWidget):
                     poly = self.parentScene.selectedItems()[0]
                     scroll_area_widget_contents = widget
                     grid = layout
-                    widget.setGeometry(10, 250, 150, len(self.polyToList(poly, "Global"))*50)
+                    for i in reversed(range(layout.count())): 
+                        grid.itemAt(i).widget().deleteLater()
+                    widget.setGeometry(10, 250, 200, len(self.polyToList(poly, "Global"))*50)
                     # Add a x- and y- editor for each point of the polygon
                     for point in self.polyToList(poly, "Global"):
                         self.labelsList.append(self.parentScene.addText("Label"))
@@ -94,8 +99,10 @@ class Canvas(QWidget):
                         label_y.setValidator(validator)
                         grid.addWidget(label_x, index, 0)
                         grid.addWidget(label_y, index, 1)
-                        print("x=",point.x(), end=", ")
-                        print("y=",point.y())
+                        label1 = QLabel()
+                        text = ("Punto "+ str((index+1)))
+                        label1.setText(text)    
+                        layout.addWidget(label1, index, 2)
                         index += 1
 
                     def update():
@@ -117,7 +124,7 @@ class Canvas(QWidget):
                                 labelIndex += 1
                         
                     update_button = (QPushButton("Update"))
-                    update_button.setStyleSheet("border: 2px solid rgb(0,0,128);")
+                    update_button.setStyleSheet("border: 3px solid rgb(0,0,128);")
                     grid.addWidget(update_button, index + 1, 1)
                     update_button.clicked.connect(update)
 
@@ -126,7 +133,6 @@ class Canvas(QWidget):
         #: Evento de un click del mouse
         x = e.pos().x()
         y = e.pos().y()
-
         if self.mode == "Arrow":
             super(Canvas, self).mousePressEvent(e)
             # Si el botón presionado es otro al izquierdo del mouse
