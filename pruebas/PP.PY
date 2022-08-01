@@ -89,7 +89,7 @@ class Canvas(QWidget):
                     widget.setGeometry(10, 250, 200, len(self.polyToList(poly, "Global"))*50)
                     # Add a x- and y- editor for each point of the polygon
                     for point in self.polyToList(poly, "Global"):
-                        self.labelsList.append(self.parentScene.addText("Label"))
+                        self.labelsList.append(self.parentScene.addText("Punto "+str(index+1)))
                         self.labelsList[index].setPos(QPointF(point.x()-10, point.y()-10) - self.labelsList[index].boundingRect().center())
 
                         validator = QRegExpValidator(QRegExp("\\-*\\d*\\.\\d+"))
