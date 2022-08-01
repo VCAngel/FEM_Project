@@ -1,5 +1,6 @@
 import itertools
 from functools import cmp_to_key
+from operator import length_hint
 
 import sys
 import PyQt5
@@ -65,7 +66,7 @@ class Canvas(QWidget):
         if self.mode == "Arrow":
             self.parentScene.clearSelection() 
             
-    def mouseDoubleClickEvent(self, event, layout):
+    def mouseDoubleClickEvent(self, event, layout, widget):
         if self.mode == "Arrow":
             super(Canvas, self).mouseDoubleClickEvent(event)
             # If in the surface view highlight the polygon to allow updating exact values of the corner points
@@ -73,9 +74,9 @@ class Canvas(QWidget):
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
                     index = 0
                     poly = self.parentScene.selectedItems()[0]
-                    scroll_area_widget_contents = QWidget()
+                    scroll_area_widget_contents = widget
                     grid = layout
-                    
+                    widget.setGeometry(10, 250, 150, len(self.polyToList(poly, "Global"))*50)
                     # Add a x- and y- editor for each point of the polygon
                     for point in self.polyToList(poly, "Global"):
                         validator = QRegExpValidator(QRegExp("\\-*\\d*\\.\\d+"))
@@ -573,9 +574,11 @@ class MainView(QGraphicsView):
         # Layout Label Widget Container
         self.layoutWid = QGridLayout(self.widget)
         self.widget.setLayout(self.layoutWid)
+        
+        self.widget.setStyleSheet("background-color: yellow;")
 
     def mouseDoubleClickEvent(self, event):
-        self.canvas.mouseDoubleClickEvent(event, self.layoutWid)
+        self.canvas.mouseDoubleClickEvent(event, self.layoutWid, self.widget)
 
 class Window(QMainWindow):
     # * Main Application Window
