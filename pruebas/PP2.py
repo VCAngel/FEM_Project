@@ -37,15 +37,6 @@ gmsh.model.geo.addPoint(40, 0,  0, tm, 2)  # Punto 2 coord (40,0,0) ...
 gmsh.model.geo.addPoint(40, 20, 0, tm, 3)
 gmsh.model.geo.addPoint(0,  20, 0, tm, 4)
 
-# Se deben definir 3 puntos que permitan crear luego el círculo. El centro, un
-# punto a la izquierda y otro a la derecha:
-
-r = 3  # radio del círculo
-
-gmsh.model.geo.addPoint(20, 10, 0, tm, 5)    # Punto central del círculo
-gmsh.model.geo.addPoint(20+r, 10, 0, tmr, 6)
-gmsh.model.geo.addPoint(20-r, 10, 0, tmr, 7)
-
 # %% Se crean las siguientes entidades: Las curvas (dimensión 1):
 
 # Primero las líneas rectas de los bordes:
@@ -56,13 +47,6 @@ gmsh.model.geo.addLine(2, 3, 2)  # ...
 gmsh.model.geo.addLine(3, 4, 3)
 gmsh.model.geo.addLine(4, 1, 4)
 
-# Ahora los arcos de circunferencia para el agujero (se deben crear 2 arcos, ya
-# que el kernel built-in no permite crear arcos con un ángulo mayor a 180°)
-# Sintaxis: gmsh.model.geo.addCircle(p. inicial, p. centro, p. final, tag)
-
-gmsh.model.geo.addCircleArc(6, 5, 7, 5)  # Arco superior
-gmsh.model.geo.addCircleArc(7, 5, 6, 6)  # Arco inferior
-
 # %% Ahora se define la siguiente entidad: La superficie (dimensión 2):
 
 # Para definir superficies, primero se deben definir 'Curve Loops' que las
@@ -70,14 +54,13 @@ gmsh.model.geo.addCircleArc(7, 5, 6, 6)  # Arco inferior
 # el agujero.
 
 gmsh.model.geo.addCurveLoop([1, 2, 3, 4], 1)
-gmsh.model.geo.addCurveLoop([5, 6], 2)
 
 # Ahora sí se puede definir la superficie, así:
 #Sintaxis: gmsh.model.geo.addPlaneSurface([Lista de Curve Loops], tag), donde:
 #          En la lista de Curve Loops el primer elemento es el loop que define
 #          el contorno de la superficie, los demás son agujeros dentro de ella.
 
-gmsh.model.geo.addPlaneSurface([1, 2], 1)
+gmsh.model.geo.addPlaneSurface([1], 1)
 
 # %% Ahora se crean los grupos físicos que se requieran
 #Por defecto, si hay grupos físicos definidos, GMSH solo reporta elementos fini-

@@ -11,11 +11,26 @@ from PyQt5.QtGui import QPen, QColor, QBrush, QPolygonF, QFont, QRegExpValidator
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QFileDialog, QGraphicsScene, \
     QGraphicsItem, QGraphicsPolygonItem, QToolButton, QLabel, \
     QGraphicsEllipseItem, QLineEdit, QFormLayout, QGraphicsLineItem, QGraphicsTextItem, QGridLayout, QPushButton, QGraphicsItem, QGraphicsView, \
-    QHBoxLayout
+    QVBoxLayout
+
+import matplotlib as mpl
+mpl.use('Qt5Agg')
+
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
+
+import geometry as cfg
+import mesh as cfm
+import vis_mpl as cfv
 
 # self.label1 = QLabel()
 # self.label1.setText("Label1")
 # self.layoutWid.addWidget(self.label1, 0, 0)
+
+class MplCanvas(FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=5, height=5, dpi=100):
+        fig = Figure(figsize=(width,height), dpi=dpi)
+        super(MplCanvas, self).__init__(fig)
 
 class Canvas(QWidget):
     def __init__(self, helper):
@@ -40,6 +55,8 @@ class Canvas(QWidget):
         self.edgeList = []
         self.holeList = []
         self.labelsList = []
+
+        self.potential_edge_splitters = []
         
         self.pointCoordList = np.zeros((1, 2))
         self.connectingRect = None
@@ -50,6 +67,11 @@ class Canvas(QWidget):
         self.drawingPointsCoords = []
         self.drawingRect = QPolygonF()
         self.holeMode = False
+
+        # Standard Mesh settings
+        self.el_type = 2
+        self.dofs_per_node = 1
+        self.el_size_factor = 25
 
         # Colores de polígono
         self.LUBlue = QColor(0, 0, 128)
@@ -63,6 +85,10 @@ class Canvas(QWidget):
 
         # Permitir el seguimiento del puntero dentro del canvas
         self.setMouseTracking(True)
+
+
+        self.fig = cfv.figure()
+        self.figure_canvas = cfv.figure_widget(self.fig)
 
     def mouseReleaseEvent(self, event):
         super(Canvas, self).mouseReleaseEvent(event)
@@ -455,6 +481,8 @@ class Canvas(QWidget):
             self.holeMode = True
         elif e.key() == Qt.Key_F2:
             self.holeMode = False
+        if e.key() == Qt.Key_F10:
+            self.show_mesh()
         
         if e.key() ==Qt.Key_F3:
             # Revisa si el algun poligono tiene otro poligono dentro o parcialmente dentro
@@ -570,7 +598,328 @@ class Canvas(QWidget):
             elif any(self.polygonContains(outerPoly, innerPoly)):
                 containList.append(innerPoly)
         return containList
+    
+    def buildGmsh(self):
+        g = cfg.Geometry()
+        point_index = 0
+        line_index = 0
+        added_points = []
+        added_lines = []
+        point_marker_list = []
+        edge_marker_list = []
+        surface_index = 0
 
+        # Loop first one time to sort the list in order of polygons containing each other to ensure that polygons which
+        # contain other polygons are added first
+        for poly in self.polyList:
+            if self.polygonContainsOtherPolygon(poly):
+                pass
+            else:
+                self.polyList.append(self.polyList.pop(self.polyList.index(poly)))
+
+        # Loop through all polygons again to add them to the gmsh object
+        for poly in self.polyList:
+            if poly in self.holeList:
+                continue
+
+            # Check for polygons overlapping eachother and warn user if any
+            # if self.polygonOverlapsOtherPolygon(poly) and not ignore_warning:
+            #     if self.overlap_warning is not None:
+            #         user_choice = self.overlap_warning()
+            #         if user_choice == "Cancel":
+            #             return None
+            #         elif user_choice == "Ignore":
+            #             ignore_warning = True
+
+            # Check if polygon intersects itself and warn user if true
+            lines = []
+            for item in poly.childItems():
+                if isinstance(item, QGraphicsLineItem):
+                    lines.append(item)
+
+            for a, b in itertools.combinations(lines, 2):
+                if a.collidesWithItem(b):
+                    if a.line().p1() == b.line().p1() or a.line().p1() == b.line().p2():
+                        pass
+                    elif a.line().p2() == b.line().p1() or a.line().p2() == b.line().p2():
+                        pass
+                    else:
+                        self.intersection_error()
+                        return None
+
+            surface_tot = []
+            point_index, line_index, added_points, added_lines, surface = self.addPolyGmsh(poly, g, point_index,
+                                                                                                   point_marker_list,
+                                                                                                   line_index,
+                                                                                                   added_points,
+                                                                                                   added_lines,
+                                                                                                   edge_marker_list)
+            surface_tot.append(surface)
+            surface_holes = []
+
+            # Check if there are any holes inside the polygon
+            for hole in self.polygonContainsHoles(poly):
+                point_index, line_index, added_points, added_lines, surface_hole = self.addPolyGmsh(hole, g,
+                                                                                                            point_index,
+                                                                                                            point_marker_list,
+                                                                                                            line_index,
+                                                                                                            added_points,
+                                                                                                            added_lines,
+                                                                                                            edge_marker_list)
+
+            for inner_poly in self.polygonContainsOtherPolygon(poly):
+                point_index, line_index, added_points, added_lines, surface_inner = self.addPolyGmsh(inner_poly,
+                                                                                                             g,
+                                                                                                             point_index,
+                                                                                                             point_marker_list,
+                                                                                                             line_index,
+                                                                                                             added_points,
+                                                                                                             added_lines,
+                                                                                                             edge_marker_list)
+                surface_holes.append(surface_inner)
+                surface_tot.append(surface_inner)
+            # Create a surface from the added lines, give the surface a number index
+            g.surface(surface, holes=surface_holes, marker=surface_index)
+            surface_index += 1
+        self.g = g
+        return g
+
+    def addPolyGmsh(self, poly, g, point_index, point_marker_list, line_index, added_points, added_lines,
+                            edge_marker_list):
+        first = True
+        first_index = point_index
+        prev_index = point_index
+        polyList = self.polyToListWithOverlap(poly)
+        surface = []
+
+        for point in polyList:  # loop over all points in the polygon
+            point_marker = None
+
+            # If the point is in the marker list store the marker text in point_marker
+            if point in point_marker_list:
+                i = point_marker_list.index(point)
+                point_marker = self.point_marker_list[i].marker
+
+            if [point.x(), -point.y()] in added_points:  # if the point already exists don't add again
+                if first:  # If it is the first point of the poly set existing point as first_index
+                    first = False
+                    current_index = added_points.index([point.x(), -point.y()])
+                    first_index = current_index
+                elif prev_index == added_points.index([point.x(), -point.y()]):
+                    # To avoid occurrence of adding zero length line from point to self
+                    pass
+                else:
+
+                    current_index = added_points.index([point.x(), -point.y()])
+                    # Check if the line from previous point already exists, in that case don't att a new one
+                    if [prev_index, current_index] in added_lines:
+                        surface.append(added_lines.index([prev_index, current_index]))
+
+                    elif [current_index, prev_index] in added_lines:
+                        surface.append(added_lines.index([current_index, prev_index]))
+
+                    else:  # else add a line from the previous point to the current pre-existing one
+                        # If the coordinates is in the edge_marker_list also add the marker for that edge
+
+                        if [added_points[prev_index], added_points[current_index]] in edge_marker_list:
+                            i = edge_marker_list.index([added_points[prev_index], added_points[current_index]])
+                            line_marker = self.line_marker_list[i].marker
+                            g.addSpline([prev_index, current_index], marker=line_marker)
+
+                        elif [added_points[current_index], added_points[prev_index]] in edge_marker_list:
+                            i = edge_marker_list.index([added_points[current_index], added_points[prev_index]])
+                            line_marker = self.line_marker_list[i].marker
+                            g.addSpline([prev_index, current_index], marker=line_marker)
+
+                        else:
+                            g.addSpline([prev_index, current_index])
+
+                        surface.append(line_index)
+                        line_index += 1
+                        added_lines.append([prev_index, current_index])
+            else:
+                # Else add a new point, if the point has a marker also add the marker
+                if point_marker:
+                    g.addPoint([point.x(), -point.y()], point_index, marker=point_marker)
+                else:
+                    g.addPoint([point.x(), -point.y()],
+                               point_index)  # Negative y since the Graphicsscene has inverted y-axis
+                current_index = point_index
+                point_index += 1
+                added_points.append([point.x(), -point.y()])
+
+                if first:
+                    # If it is the first added point do nothing as there is no other point to connect a line to
+                    first = False
+                else:
+                    # Else add a new line between the previous point and the current, if those coordinates
+                    # correspond with a marker also add the marker to the line
+                    if [added_points[prev_index], added_points[current_index]] in edge_marker_list:
+                        i = edge_marker_list.index([added_points[prev_index], added_points[current_index]])
+                        line_marker = self.line_marker_list[i].marker
+                        g.addSpline([prev_index, current_index], marker=line_marker)
+
+                    elif [added_points[current_index], added_points[prev_index]] in edge_marker_list:
+                        i = edge_marker_list.index([added_points[current_index], added_points[prev_index]])
+                        line_marker = self.line_marker_list[i].marker
+                        g.addSpline([prev_index, current_index], marker=line_marker)
+
+                    else:
+                        g.addSpline([prev_index, current_index])
+
+                    surface.append(line_index)
+                    line_index += 1
+                    added_lines.append([prev_index, current_index])
+
+            prev_index = current_index
+
+        # Finally do the procedure again but add the line from the last index to the first index to close the
+        # surface, also here add a line marker if there is one
+        if [current_index, first_index] in added_lines:
+            surface.append(added_lines.index([current_index, first_index]))
+
+        elif [first_index, current_index] in added_lines:
+            surface.append(added_lines.index([first_index, current_index]))
+
+        else:
+            if [added_points[first_index], added_points[current_index]] in edge_marker_list:
+                i = edge_marker_list.index([added_points[first_index], added_points[current_index]])
+                line_marker = self.line_marker_list[i].marker
+                g.addSpline([current_index, first_index], marker=line_marker)
+
+            elif [added_points[current_index], added_points[first_index]] in edge_marker_list:
+                i = edge_marker_list.index([added_points[current_index], added_points[first_index]])
+                line_marker = self.line_marker_list[i].marker
+                g.addSpline([current_index, first_index], marker=line_marker)
+
+            else:
+                g.addSpline([current_index, first_index])
+
+            surface.append(line_index)
+            line_index += 1
+            added_lines.append([current_index, first_index])
+        return point_index, line_index, added_points, added_lines, surface
+
+    def polyToListWithOverlap(self, polygon):
+        """
+            Creates a polygon list but includes checking of overlapping points on edges, in case of overlap adds a extra
+            point in the list where the overlap occurs.
+        """
+        added = 0
+        polygon_item = polygon.polygon()
+        polygon_item.translate(polygon.x(), polygon.y())
+
+        # Comparator to determine which x value of two points is the highest
+        def compare_x(item1, item2):
+            if item1.x() < item2.x():
+                return -1
+            elif item1.x() > item2.x():
+                return 1
+            else:
+                return 0
+
+        # Comparator to determine which y value of two points is the highest
+        def compare_y(item1, item2):
+            if item1.y() < item2.y():
+                return -1
+            elif item1.y() > item2.y():
+                return 1
+            else:
+                return 0
+
+        # Create two lists, one sorted by ascending x-values, one by ascending y-values
+        x_list = sorted(self.potential_edge_splitters, key=cmp_to_key(compare_x))
+        y_list = sorted(self.potential_edge_splitters, key=cmp_to_key(compare_y))
+
+        # Loop over all children to the polygon
+        for item in polygon.childItems():
+            # Look only at edges (overlapping of points is handled elsewhere)
+            if isinstance(item, PyQt5.QtWidgets.QGraphicsLineItem):
+                edge = item
+
+                p1 = edge.line().p1()
+                p2 = edge.line().p2()
+                added_this = 0
+
+                # Choose the direction with the largest disparity (to avoid scenario of straight lines)
+                # then use the sorted list for that direction
+                if abs(p1.x() - p2.x()) > abs(p1.y() - p2.y()):
+                    mode = "X"
+                    circ_list = x_list
+                else:
+                    mode = "Y"
+                    circ_list = y_list
+
+                for circ in circ_list:
+                    poly = circ.parentItem()
+                    p = circ.scenePos()
+
+                    # temp_p needed since edge.contains does not account for the edge being moved in the canvas
+                    temp_p = circ.scenePos()
+                    temp_p.setX(temp_p.x() - edge.scenePos().x())
+                    temp_p.setY(temp_p.y() - edge.scenePos().y())
+
+                    # Find the edges to split which contain temp_p, if the edge contains decide the orientation (in x-
+                    # or y-direction decided earlier) of p1 and p2, based on this insert the new point in the polygon
+                    # in the correct position
+                    if edge.contains(temp_p):
+                        if edge in poly.childItems():
+                            pass  # Ignore if the edge is in the same polygon as the point
+                        else:
+                            if temp_p == p1 or temp_p == p2:
+                                pass  # Don't compare if it contains an edge point, instead handled later by the overlapping points
+                            elif mode == "Y":
+                                if p1.y() < p2.y():  # Left to right
+                                    index = abs(edge.localIndex)
+                                    polygon_item.insert(index + added, p)
+                                    added += 1
+                                elif p1.y() > p2.y():  # Right to left
+                                    index = abs(edge.localIndex)
+                                    polygon_item.insert(index + added - added_this, p)
+                                    added_this += 1
+                                    added += 1
+                            else:
+                                if p1.x() < p2.x():  # Left to right
+                                    index = abs(edge.localIndex)
+                                    polygon_item.insert(index + added, p)
+                                    added += 1
+                                elif p1.x() > p2.x():  # Right to left
+                                    index = abs(edge.localIndex)
+                                    polygon_item.insert(index + added - added_this, p)
+                                    added_this += 1
+                                    added += 1
+
+        return self.polyToList(polygon_item, "Global")
+
+    def show_mesh(self):
+        """Update the CALFEM vis figure with the CALFEM mesh description of the currently drawn geometry"""
+        g = self.buildGmsh()
+        if g:
+            mesh = cfm.GmshMesh(g)
+            mesh.el_type = self.el_type
+
+            mesh.dofs_per_node = self.dofs_per_node
+            mesh.el_size_factor = self.el_size_factor
+            self.mesh = mesh
+
+            coords, edof, dofs, bdofs, elementmarkers = mesh.create()
+            cfv.clf()
+
+            cfv.draw_mesh(
+                coords=coords,
+                edof=edof,
+                dofs_per_node=mesh.dofs_per_node,
+                el_type=mesh.el_type,
+                filled=True
+            )
+            if self.figure_canvas is not None:
+                # todo Eliminar elemento de escena padre, para poder añadir el nuevo elemento
+                self.parentScene.addWidget(self.figure_canvas)
+            else:
+                cfv.show_and_wait()
+            return None
+        else:
+            return "Canceled"
 
 class MainView(QGraphicsView):
     def __init__(self, win):
@@ -579,6 +928,9 @@ class MainView(QGraphicsView):
         # Crear escena para los items dentro del View
         self.scene = QGraphicsScene(win)
         self.setScene(self.scene)
+
+        # Layout para GraphicsScene
+        # self.mplLayout = QVBoxLayout()
 
         # Agregar el componente Canvas a la escena
         self.canvas = Canvas(self)
