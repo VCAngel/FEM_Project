@@ -392,6 +392,7 @@ class GmshMeshGenerator:
 
             # Write .msh file
             gmsh.write(mshFileName)
+            gmsh.fltk.run()
 
             # Close extension module
 
