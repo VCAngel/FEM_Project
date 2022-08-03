@@ -10,7 +10,7 @@ from PyQt5.QtGui import QPen, QColor, QBrush, QPolygonF, QFont, QRegExpValidator
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QFileDialog, QGraphicsScene, \
     QGraphicsItem, QGraphicsPolygonItem, QToolButton, QLabel, \
     QGraphicsEllipseItem, QLineEdit, QFormLayout, QGraphicsLineItem, QGraphicsTextItem, QGridLayout, QPushButton, QGraphicsItem, QGraphicsView, \
-    QHBoxLayout
+    QHBoxLayout, QMessageBox
 
 import geometry as cfg
 import mesh as cfm
@@ -86,6 +86,29 @@ class Canvas(QWidget):
         # current coordinates back to the global coordinate list to update to the new position
         if self.mode == "Arrow":
             self.parentScene.clearSelection() 
+
+    def popup_button(self, i):
+        self.overlap_warning_choice = i.text()
+
+    def intersection_error(self):
+        msg = QMessageBox()
+        msg.setWindowTitle("Error")
+        msg.setText("Hay un poligono que esta encimado consigo mismo")
+        msg.setIcon(QMessageBox.Critical)
+        msg.setStandardButtons(QMessageBox.Cancel)
+
+        msg.exec_()
+
+    def overlap_warning(self):
+        msg = QMessageBox()
+        msg.setWindowTitle("Advertencia")
+        msg.setText("Hay figuras que se sobreponen")
+        msg.setIcon(QMessageBox.Warning)
+        msg.setStandardButtons(QMessageBox.Cancel | QMessageBox.Ignore)
+
+        msg.buttonClicked.connect(self.popup_button)
+        msg.exec_()
+        return self.overlap_warning_choice
             
     def mouseDoubleClickEvent(self, event, layout, widget):
         if self.mode == "Arrow":
@@ -463,46 +486,6 @@ class Canvas(QWidget):
             self.holeMode = False
         if e.key() == Qt.Key_F10:
             self.show_mesh()
-        
-        if e.key() ==Qt.Key_F3:
-            # Revisa si el algun poligono tiene otro poligono dentro o parcialmente dentro
-           
-            for poly in self.polyList:
-                if self.polygonContainsOtherPolygon(poly):
-                    pass
-                else:
-                    self.polyList.append(self.polyList.pop(self.polyList.index(poly)))
-
-            for poly in self.polyList:
-                if poly in self.holeList:
-                    continue
-
-                # Revisa si hay poligonos que se sobrepongan
-                if self.polygonOverlapsOtherPolygon(poly):
-                    print("overlaps")
-
-                # Revisa si hay poligonos que se intersecten
-                lines = []
-                for item in poly.childItems():
-                    if isinstance(item, QGraphicsLineItem):
-                        lines.append(item)
-
-                for a, b in itertools.combinations(lines, 2):
-                    if a.collidesWithItem(b):
-                        if a.line().p1() == b.line().p1() or a.line().p1() == b.line().p2():
-                            pass
-                        elif a.line().p2() == b.line().p1() or a.line().p2() == b.line().p2():
-                            pass
-                        else:
-                            self.intersectionError()
-                            return None
-
-                # Revisa si hay agujeros en algun poligono
-                for hole in self.polygonContainsHoles(poly):
-                    print("Contiene hoyos")
-
-                for innerPoly in self.polygonContainsOtherPolygon(poly):
-                    print("Contiene otro poligono")
         print(self.mode)
         print(self.holeMode)
 
@@ -564,7 +547,6 @@ class Canvas(QWidget):
                 pass
             elif all(self.polygonContains(outerPoly, innerPoly)):
                 containList.append(innerPoly)
-                print("contain")
         return containList
 
     def polygonOverlapsOtherPolygon(self, outerPoly):
@@ -588,6 +570,7 @@ class Canvas(QWidget):
         point_marker_list = []
         edge_marker_list = []
         surface_index = 0
+        ignore_warning = False
 
         # Loop first one time to sort the list in order of polygons containing each other to ensure that polygons which
         # contain other polygons are added first
@@ -603,13 +586,13 @@ class Canvas(QWidget):
                 continue
 
             # Check for polygons overlapping eachother and warn user if any
-            # if self.polygonOverlapsOtherPolygon(poly) and not ignore_warning:
-            #     if self.overlap_warning is not None:
-            #         user_choice = self.overlap_warning()
-            #         if user_choice == "Cancel":
-            #             return None
-            #         elif user_choice == "Ignore":
-            #             ignore_warning = True
+            if self.polygonOverlapsOtherPolygon(poly) and not ignore_warning:
+                if self.overlap_warning is not None:
+                    user_choice = self.overlap_warning()
+                    if user_choice == "Cancel":
+                        return None
+                    elif user_choice == "Ignore":
+                        ignore_warning = True
 
             # Check if polygon intersects itself and warn user if true
             lines = []
