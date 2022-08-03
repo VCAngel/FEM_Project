@@ -360,7 +360,6 @@ class GmshMeshGenerator:
                 gmsh.oldsig = None
 
             # Load .geo file
-
             gmsh.open(geoFilePath)
             gmsh.model.geo.synchronize()
 
@@ -392,7 +391,6 @@ class GmshMeshGenerator:
             gmsh.model.mesh.generate(dim)
 
             # Write .msh file
-
             gmsh.write(mshFileName)
 
             # Close extension module
