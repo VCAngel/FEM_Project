@@ -892,10 +892,10 @@ class Canvas(QWidget):
                 el_type = mesh.elType,
                 filled = True
             )
-            if self.figure_canvas is not None:
+            if self.figureCanvas is not None:
                 if self.mplLayout.count() == 0:
                     self.mplLayout.addWidget(self.figureCanvas)
-                self.figure_canvas.draw()
+                self.figureCanvas.draw()
             else:
                 cfv.show_and_wait()
             return None
