@@ -38,6 +38,7 @@ class Canvas(QWidget):
 
         # Referencia a la escena padre. Permite acceder a las funciones de dibujo
         self.parentScene = helper.scene
+        self.mplLayout = helper.mplLayout
 
         # Brushes y Pens
         self.greenBrush = QBrush(Qt.green)
@@ -896,8 +897,9 @@ class Canvas(QWidget):
                 filled=True
             )
             if self.figure_canvas is not None:
-                # todo Eliminar elemento de escena padre, para poder añadir el nuevo elemento
-                self.parentScene.addWidget(self.figure_canvas)
+                if self.mplLayout.count() == 0:
+                    self.mplLayout.addWidget(self.figure_canvas)
+                self.figure_canvas.draw()
             else:
                 cfv.show_and_wait()
             return None
@@ -912,15 +914,19 @@ class MainView(QGraphicsView):
         self.scene = QGraphicsScene(win)
         self.setScene(self.scene)
 
-        # Layout para GraphicsScene
-        # self.mplLayout = QVBoxLayout()
+        # Matplotlib widget
+        self.mplWidget = QWidget(self)
+        self.mplWidget.setGeometry(0,0,300,300)
+        self.mplLayout = QVBoxLayout(self.mplWidget)
+        self.mplWidget.setLayout(self.mplLayout)
+        self.mplWidget.setStyleSheet("background-color: grey;")
 
         # Agregar el componente Canvas a la escena
         self.canvas = Canvas(self)
         self.scene.addWidget(self.canvas)
 
         self.widget = QWidget(self)
-        self.widget.setGeometry(10,250,150, 100)
+        self.widget.setGeometry(10,310,150, 100)
 
 
         #Aqui agregan los labels 
