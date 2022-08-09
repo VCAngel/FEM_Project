@@ -15,9 +15,7 @@ import matplotlib.patches as patches
 import matplotlib as mpl
 import matplotlib.tri as tri
 from numpy.lib.function_base import place
-
-from calfem.core import beam2crd
-import calfem.core as cfc
+import sys
 
 try:
     from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -31,6 +29,108 @@ from math import atan2
 import logging as cflog
 
 g_figures = []
+
+def check_list_array(v, error_string):
+
+    fname = sys._getframe(1).f_code.co_name
+
+    if (type(v) != list) and (type(v) != np.ndarray):
+        raise TypeError("%s (%s)" % (error_string, fname))
+
+
+def check_length(v, length, error_string):
+
+    fname = sys._getframe(1).f_code.co_name
+
+    if len(v) != length:
+        raise ValueError("%s (%s)" % (error_string, fname))
+
+def beam2crd(ex=None, ey=None, ed=None, mag=None):
+    """
+    -------------------------------------------------------------
+        PURPOSE
+         Calculate the element continous displacements for a
+         number of identical 2D Bernoulli beam elements.
+    
+        INPUT:  ex,ey,
+                ed,
+                mag
+    
+        OUTPUT: excd,eycd
+    -------------------------------------------------------------
+
+    LAST MODIFIED: P-E AUSTRELL 1993-10-15
+    Copyright (c)  Division of Structural Mechanics and
+                    Division of Solid Mechanics.
+                    Lund University
+    -------------------------------------------------------------
+    """
+
+    nie, ned = ed.shape
+
+    n_coords = 21
+
+    excd = np.zeros([nie, n_coords])
+    eycd = np.zeros([nie, n_coords])
+
+    for i in range(nie):
+        b = np.array([ex[i, 1] - ex[i, 0], ey[i, 1] - ey[i, 0]])
+        L = np.sqrt(b @ np.transpose(b))
+        n = b / L
+
+        G = np.array([
+            [n[0], n[1], 0, 0, 0, 0],
+            [-n[1], n[0], 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0],
+            [0, 0, 0, n[0], n[1], 0],
+            [0, 0, 0, - n[1], n[0], 0],
+            [0, 0, 0, 0, 0, 1]
+        ])
+
+        d = np.transpose(ed[i, :])
+        dl = G @ d
+        xl = np.transpose(np.linspace(0, L, n_coords))
+        one = np.ones(xl.shape)
+
+        Cis = np.array([
+            [-1, 1],
+            [L, 0]
+        ]) / L
+
+        ds = np.array([dl[0], dl[3]]).reshape(2, 1)
+        xl_one = np.transpose(np.vstack((xl, one)))
+        ul = np.transpose(xl_one@Cis@ds)  # [20x1][2]
+
+        Cib = np.array([
+            [12, 6 * L, - 12, 6 * L],
+            [- 6 * L, - 4 * L ** 2, 6 * L, - 2 * L ** 2],
+            [0, L ** 3, 0, 0],
+            [L ** 3, 0, 0, 0]
+        ]) / L ** 3
+
+        db = np.array([dl[1], dl[2], dl[4], dl[5]]).reshape(4, 1)
+        vl = np.transpose(np.transpose(
+            np.vstack((xl**3/6, xl**2/2, xl, one)))@Cib@db)
+
+        cld = np.vstack((ul, vl))
+        A = np.array([
+            [n[0], -n[1]],
+            [n[1], n[0]]
+        ])
+        cd = A@cld
+
+        # [2,1] x [1,20] + [2 x 1] x [1 x 20]
+        #    [2 x 20]    +      [2 x 20]
+
+        AA = A[:, 0].reshape(2, 1)
+        XL = xl.reshape(1, n_coords)
+        xyc = AA@XL + np.array([[ex[i, 0]], [ey[i, 0]]]
+                               )@one.reshape(1, n_coords)
+
+        excd[i, :] = xyc[0, :]+mag*cd[0, :]
+        eycd[i, :] = xyc[1, :]+mag*cd[1, :]
+
+    return excd, eycd
 
 def error(msg):
     """Log error message"""
@@ -1290,8 +1390,8 @@ def pltstyle2(plotpar):
     -------------------------------------------------------------
     """
 
-    cfc.check_list_array(plotpar, "plotpar needs to be a list or an array of 3 values.")
-    cfc.check_length(plotpar, 3, "plotpar needs to contain 3 values.")
+    check_list_array(plotpar, "plotpar needs to be a list or an array of 3 values.")
+    check_length(plotpar, 3, "plotpar needs to contain 3 values.")
 
     p1, p2, p3 = plotpar
 

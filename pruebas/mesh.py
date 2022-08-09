@@ -13,23 +13,47 @@ import subprocess
 
 import numpy as np
 
-from calfem.core import createdofs
-from calfem.utils import which
-import calfem.core as cfc
-import logging as cflog
-
 import gmsh
 
+def which(filename):
+    """
+    Return complete path to executable given by filename.
+    """
+    if not ('PATH' in os.environ) or os.environ['PATH'] == '':
+        p = os.defpath
+    else:
+        p = os.environ['PATH']
 
-def error(msg):
-    """Log error message"""
-    cflog.error(msg)
+    pathlist = p.split(os.pathsep)
+    pathlist.insert(0, ".")
+    pathlist.insert(0, "/bin")
+    pathlist.insert(0, "/usr/bin")
+    pathlist.insert(0, "/opt/local/bin")
+    pathlist.insert(0, "/usr/local/bin")
+    pathlist.insert(0, "/Applications/Gmsh.app/Contents/MacOS")
+
+    # Add paths from site-packages
+
+    for path in sys.path:
+        if "site-packages" in path:
+            pathlist.insert(0, path)
+
+    for path in pathlist:
+        f = os.path.join(path, filename)
+
+        if os.access(f, os.X_OK):
+            return f
+
+    return None
+
+def create_dofs(nCoords, nDof):
+    """
+    Create dof array [nCoords x nDof]
+    """
+    return np.arange(nCoords*nDof).reshape(nCoords, nDof)+1
 
 
-def info(msg):
-    """Log information message"""
-    cflog.info(msg)
-
+createdofs = create_dofs
 
 def cmp(a, b):
     return (a > b) ^ (a < b)
@@ -399,7 +423,6 @@ class GmshMeshGenerator:
                 gmsh.finalize()
         else:
             gmshExe = os.path.normpath(gmshExe)
-            info("GMSH binary: "+gmshExe)
 
             output = subprocess.Popen(r'"%s" "%s" %s' % (
                 gmshExe, geoFilePath, options), shell=True, stdout=subprocess.PIPE).stdout.read()
@@ -408,8 +431,6 @@ class GmshMeshGenerator:
         # print("Opening msh file " + mshFileName)#TEMP
 
         with open(mshFileName, 'r') as mshFile:
-
-            info("Mesh file  : "+mshFileName)
 
             # print("Reading msh file...")
 
@@ -985,7 +1006,7 @@ def trimesh2d(vertices, segments=None, holes=None, maxArea=None, quality=True, d
             triangleExecutable = None
 
     if triangleExecutable == None:
-        error("Error: Could not find triangle. Please make sure that the \ntriangle executable is available on the search path (PATH).")
+        print("Error: Could not find triangle. Please make sure that the \ntriangle executable is available on the search path (PATH).")
         return None, None, None, None
 
     # Create triangle options
@@ -1101,12 +1122,12 @@ def trimesh2d(vertices, segments=None, holes=None, maxArea=None, quality=True, d
 
     # Add dofs in edof and bcVerts
 
-    dofs = cfc.createdofs(np.size(allVertices, 0), dofs_per_node)
+    dofs = createdofs(np.size(allVertices, 0), dofs_per_node)
 
     if dofs_per_node > 1:
         expandedElements = np.zeros(
             (np.size(elements, 0), 3*dofs_per_node), 'i')
-        dofs = cfc.createdofs(np.size(allVertices, 0), dofs_per_node)
+        dofs = createdofs(np.size(allVertices, 0), dofs_per_node)
 
         elIdx = 0
 
