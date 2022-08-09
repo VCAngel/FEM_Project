@@ -12,7 +12,7 @@ from PyQt5.QtGui import QPen, QColor, QBrush, QPolygonF, QFont, QRegExpValidator
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QFileDialog, QGraphicsScene, \
     QGraphicsItem, QGraphicsPolygonItem, QToolButton, QLabel, \
     QGraphicsEllipseItem, QLineEdit, QFormLayout, QGraphicsLineItem, QGraphicsTextItem, QGridLayout, QPushButton, QGraphicsItem, QGraphicsView, \
-    QVBoxLayout, QMessageBox
+    QVBoxLayout, QMessageBox, QSlider
 
 import matplotlib as mpl
 mpl.use('Qt5Agg')
@@ -899,10 +899,23 @@ class Canvas(QWidget):
                     updateButton.setStyleSheet("border: 3px solid rgb(0,0,128);")
                     def update():
                         self.elSizeFactor = float(sizeFactorInput.text())
-                        print(str(self.elSizeFactor))
                         self.showMesh()
                     updateButton.clicked.connect(update)
                     self.mplLayout.addWidget(updateButton)
+                    slider = QSlider(Qt.Horizontal)
+                    slider.setFocusPolicy(Qt.StrongFocus)
+                    slider.setTickPosition(QSlider.TicksBothSides)
+                    slider.setTickInterval(10)
+                    slider.setSingleStep(1)
+                    slider.setValue(self.elSizeFactor)
+                    slider.setMinimum(1)
+                    slider.setMaximum(100)
+                    def changeValue(value):
+                        self.elSizeFactor = str(value)
+                        sizeFactorInput.setText(str(value))
+                        print(value)
+                    slider.valueChanged[int].connect(changeValue)
+                    self.mplLayout.addWidget(slider)
                 self.figureCanvas.draw()
             else:
                 cfv.show_and_wait()
