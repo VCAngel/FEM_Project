@@ -885,8 +885,25 @@ class Canvas(QWidget):
                 filled = True
             )
             if self.figureCanvas is not None:
+<<<<<<< Updated upstream
                 # todo Eliminar elemento de escena padre, para poder añadir el nuevo elemento
                 self.parentScene.addWidget(self.figureCanvas)
+=======
+                if self.mplLayout.count() == 0:
+                    sizeFactorInput = QLineEdit(str(self.elSizeFactor))
+                    sizeFactorInput.setStyleSheet("background-color: white;")
+                    self.mplLayout.addWidget(self.figureCanvas)
+                    self.mplLayout.addWidget(sizeFactorInput)
+                    updateButton = (QPushButton("Update"))
+                    updateButton.setStyleSheet("border: 3px solid rgb(0,0,128);")
+                    def update():
+                        self.elSizeFactor = float(sizeFactorInput.text())
+                        print(str(self.elSizeFactor))
+                        self.showMesh()
+                    updateButton.clicked.connect(update)
+                    self.mplLayout.addWidget(updateButton)
+                self.figureCanvas.draw()
+>>>>>>> Stashed changes
             else:
                 cfv.show_and_wait()
             return None
