@@ -1,3 +1,5 @@
+from cmath import log
+from ctypes import sizeof
 import itertools
 from functools import cmp_to_key
 from operator import length_hint
@@ -10,15 +12,22 @@ from PyQt5.QtGui import QPen, QColor, QBrush, QPolygonF, QFont, QRegExpValidator
 from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QFileDialog, QGraphicsScene, \
     QGraphicsItem, QGraphicsPolygonItem, QToolButton, QLabel, \
     QGraphicsEllipseItem, QLineEdit, QFormLayout, QGraphicsLineItem, QGraphicsTextItem, QGridLayout, QPushButton, QGraphicsItem, QGraphicsView, \
-    QHBoxLayout, QMessageBox
+    QVBoxLayout, QMessageBox
+
+import matplotlib as mpl
+mpl.use('Qt5Agg')
+
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.figure import Figure
 
 import geometry as cfg
 import mesh as cfm
 import vis_mpl as cfv
 
-# self.label1 = QLabel()
-# self.label1.setText("Label1")
-# self.layoutWid.addWidget(self.label1, 0, 0)
+class MplCanvas(FigureCanvasQTAgg):
+    def __init__(self, parent=None, width=5, height=5, dpi=100):
+        fig = Figure(figsize=(width,height), dpi=dpi)
+        super(MplCanvas, self).__init__(fig)
 
 class Canvas(QWidget):
     def __init__(self, helper):
@@ -26,6 +35,7 @@ class Canvas(QWidget):
 
         # Referencia a la escena padre. Permite acceder a las funciones de dibujo
         self.parentScene = helper.scene
+        self.mplLayout = helper.mplLayout
 
         # Brushes y Pens
         self.greenBrush = QBrush(Qt.green)
@@ -75,7 +85,6 @@ class Canvas(QWidget):
         self.setMouseTracking(True)
 
 
-        scene = self
         self.fig = cfv.figure()
         self.figureCanvas = cfv.figure_widget(self.fig)
 
@@ -114,6 +123,9 @@ class Canvas(QWidget):
             super(Canvas, self).mouseDoubleClickEvent(event)
             # If in the surface view highlight the polygon to allow updating exact values of the corner points
             if self.parentScene.selectedItems():
+                for label in  self.labelsList:
+                    label.setVisible(False);
+                self.labelsList = [];
                 if isinstance(self.parentScene.selectedItems()[0], PyQt5.QtWidgets.QGraphicsPolygonItem):
                     index = 0
                     poly = self.parentScene.selectedItems()[0]
@@ -125,6 +137,9 @@ class Canvas(QWidget):
                     widget.setGeometry(10, 250, 200, len(self.polyToList(poly, "Global"))*50)
                     # Add a x- and y- editor for each point of the polygon
                     for point in self.polyToList(poly, "Global"):
+                        self.labelsList.append(self.parentScene.addText("Punto "+str(index+1)))
+                        self.labelsList[index].setPos(QPointF(point.x()-10, point.y()-10) - self.labelsList[index].boundingRect().center())
+
                         validator = QRegExpValidator(QRegExp("\\-*\\d*\\.\\d+"))
                         labelX = QLineEdit(str(point.x()))
                         labelX.setValidator(validator)
@@ -140,6 +155,7 @@ class Canvas(QWidget):
 
                     def update():
                         # Update the polygon with the new edited values
+                        labelIndex = 0
                         i = 0
                         for childItem in poly.childItems():
                             if isinstance(childItem, PyQt5.QtWidgets.QGraphicsEllipseItem):
@@ -149,6 +165,7 @@ class Canvas(QWidget):
                                     circ = childItem
                                     self.moveNode(circ, poly, x, y)
                                     point = circ.scenePos()
+                                    self.labelsList[labelIndex].setPos(QPointF(point.x()-10, point.y()-10) - self.labelsList[labelIndex].boundingRect().center())
                                     self.pointCoordList = np.append(self.pointCoordList,
                                                                         [[point.x(), point.y()]], axis=0)
                                     i += 1
@@ -166,6 +183,7 @@ class Canvas(QWidget):
         y = e.pos().y()
         if self.mode == "Arrow":
             super(Canvas, self).mousePressEvent(e)
+
             # Si el botón presionado es otro al izquierdo del mouse
             if e.button() != 1:
                 return
@@ -400,7 +418,7 @@ class Canvas(QWidget):
         # Conseguimos las coordenadas X y Y del mouse cada vez que se mueve
         x = event.pos().x()
         y = event.pos().y() 
-        
+
         if self.mode == "Draw poly":
             # Esto muestra la linea desde el punto anterior a la posicion del mouse
             if self.newPoly:
@@ -486,20 +504,7 @@ class Canvas(QWidget):
         elif e.key() == Qt.Key_F2:
             self.holeMode = False
         if e.key() == Qt.Key_F10:
-            grid = self.mplLayout
-            for i in reversed(range(self.mplLayout.count())): 
-                grid.itemAt(i).widget().deleteLater()
-
-            def updateSize():
-                self.elSizeFactor = text
-                
-            updateButton = (QPushButton("Update"))
-            updateButton.setStyleSheet("border: 3px solid rgb(0,0,128);")
-            grid.addWidget(updateButton, 1, 1)
-            updateButton.clicked.connect(updateSize)
-
             self.showMesh()
-            
         print(self.mode)
         print(self.holeMode)
 
@@ -885,8 +890,11 @@ class Canvas(QWidget):
                 filled = True
             )
             if self.figureCanvas is not None:
-                # todo Eliminar elemento de escena padre, para poder añadir el nuevo elemento
-                self.parentScene.addWidget(self.figureCanvas)
+                if self.mplLayout.count() == 0:
+                    sizeFactorInput = QLineEdit(str(self.elSizeFactor))
+                    self.mplLayout.addWidget(self.figureCanvas)
+                    self.mplLayout.addWidget(sizeFactorInput)
+                self.figureCanvas.draw()
             else:
                 cfv.show_and_wait()
             return None
@@ -901,13 +909,19 @@ class MainView(QGraphicsView):
         self.scene = QGraphicsScene(win)
         self.setScene(self.scene)
 
+        # Matplotlib widget
+        self.mplWidget = QWidget(self)
+        self.mplWidget.setGeometry(0,0,300,300)
+        self.mplLayout = QVBoxLayout(self.mplWidget)
+        self.mplWidget.setLayout(self.mplLayout)
+        self.mplWidget.setStyleSheet("background-color: grey;")
+
         # Agregar el componente Canvas a la escena
         self.canvas = Canvas(self)
         self.scene.addWidget(self.canvas)
 
         self.widget = QWidget(self)
 
-        self.widget.setGeometry(10,250,150, 100)
 
         #Aqui agregan los labels 
         # Layout Label Widget Container
