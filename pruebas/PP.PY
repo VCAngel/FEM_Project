@@ -1,4 +1,5 @@
 from cmath import log
+from ctypes import sizeof
 import itertools
 from functools import cmp_to_key
 from operator import length_hint
@@ -22,10 +23,6 @@ from matplotlib.figure import Figure
 import geometry as cfg
 import mesh as cfm
 import vis_mpl as cfv
-
-# self.label1 = QLabel()
-# self.label1.setText("Label1")
-# self.layoutWid.addWidget(self.label1, 0, 0)
 
 class MplCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None, width=5, height=5, dpi=100):
@@ -894,7 +891,9 @@ class Canvas(QWidget):
             )
             if self.figureCanvas is not None:
                 if self.mplLayout.count() == 0:
+                    sizeFactorInput = QLineEdit(str(self.elSizeFactor))
                     self.mplLayout.addWidget(self.figureCanvas)
+                    self.mplLayout.addWidget(sizeFactorInput)
                 self.figureCanvas.draw()
             else:
                 cfv.show_and_wait()
