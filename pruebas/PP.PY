@@ -486,7 +486,20 @@ class Canvas(QWidget):
         elif e.key() == Qt.Key_F2:
             self.holeMode = False
         if e.key() == Qt.Key_F10:
+            grid = self.mplLayout
+            for i in reversed(range(self.mplLayout.count())): 
+                grid.itemAt(i).widget().deleteLater()
+
+            def updateSize():
+                self.elSizeFactor = text
+                
+            updateButton = (QPushButton("Update"))
+            updateButton.setStyleSheet("border: 3px solid rgb(0,0,128);")
+            grid.addWidget(updateButton, 1, 1)
+            updateButton.clicked.connect(updateSize)
+
             self.showMesh()
+            
         print(self.mode)
         print(self.holeMode)
 
@@ -893,8 +906,8 @@ class MainView(QGraphicsView):
         self.scene.addWidget(self.canvas)
 
         self.widget = QWidget(self)
-        self.widget.setGeometry(10,250,150, 100)
 
+        self.widget.setGeometry(10,250,150, 100)
 
         #Aqui agregan los labels 
         # Layout Label Widget Container

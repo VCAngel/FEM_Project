@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-CALFEM Visualisation module (matplotlib)
-
-Contains all the functions implementing visualisation routines.
-"""
-
 from matplotlib.transforms import Transform
 import numpy as np
 

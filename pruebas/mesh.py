@@ -1,10 +1,3 @@
-# -*- coding: iso-8859-15 -*-
-"""
-CALFEM Mesh module
-
-Contains functions and classes for generating meshes from geometries.
-"""
-
 import os
 import sys
 import tempfile
@@ -31,6 +24,18 @@ def which(filename):
     pathlist.insert(0, "/opt/local/bin")
     pathlist.insert(0, "/usr/local/bin")
     pathlist.insert(0, "/Applications/Gmsh.app/Contents/MacOS")
+    
+    # Add paths from site-packages
+
+    for path in sys.path:
+        if "site-packages" in path:
+            pathlist.insert(0, path)
+
+    for path in pathlist:
+        f = os.path.join(path, filename)
+
+        if os.access(f, os.X_OK):
+            return f
 
     # Add paths from site-packages
 
