@@ -1,6 +1,10 @@
 import sys
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
+from PyQt5.QtCore import QPointF, QLineF, QRectF, QRegExp, Qt, QRect
+from PyQt5.QtGui import QPen, QColor, QBrush, QPolygonF, QFont, QRegExpValidator
+from PyQt5.QtWidgets import QApplication, QWidget, QMainWindow, QFileDialog, QGraphicsScene, \
+    QGraphicsItem, QGraphicsPolygonItem, QToolButton, QLabel, \
+    QGraphicsEllipseItem, QLineEdit, QFormLayout, QGraphicsLineItem, QGraphicsTextItem, QGridLayout, QPushButton, QGraphicsItem, QGraphicsView, \
+    QVBoxLayout, QMessageBox, QSlider
 
 class sliderdemo(QWidget):
    def __init__(self, parent = None):

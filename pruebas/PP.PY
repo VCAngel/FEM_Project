@@ -900,6 +900,7 @@ class Canvas(QWidget):
                     def update():
                         self.elSizeFactor = float(sizeFactorInput.text())
                         self.showMesh()
+                        slider.setValue(float(sizeFactorInput.text()))
                     updateButton.clicked.connect(update)
                     self.mplLayout.addWidget(updateButton)
                     slider = QSlider(Qt.Horizontal)
@@ -913,7 +914,6 @@ class Canvas(QWidget):
                     def changeValue(value):
                         self.elSizeFactor = str(value)
                         sizeFactorInput.setText(str(value))
-                        print(value)
                     slider.valueChanged[int].connect(changeValue)
                     self.mplLayout.addWidget(slider)
                 self.figureCanvas.draw()
